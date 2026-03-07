@@ -6,6 +6,7 @@ import 'package:medisync_app/features/dashboard/data/repository/hospital_reposit
 import 'package:medisync_app/features/dashboard/presentation/bloc/hospital_cubit.dart';
 import 'package:medisync_app/features/dashboard/presentation/widgets/hospital_list_screen.dart';
 import 'package:medisync_app/features/dashboard/presentation/widgets/medisync_appbar.dart';
+import 'package:medisync_app/features/appointment/presentation/pages/appointment_list_screen.dart';
 import 'package:medisync_app/features/ehr/presentation/pages/ehr_screen.dart';
 import 'package:medisync_app/features/notification/presentation/screens/notification_screen.dart';
 import 'package:medisync_app/global/storage/token_storage.dart';
@@ -30,14 +31,22 @@ class _UserDashboardState extends State<UserDashboard> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
+          // Tab 0 — Home
           _UserHomeTab(user: user, onTabChange: _setTab),
+
+          // Tab 1 — Hospitals
           BlocProvider(
-            create: (_) =>
-                HospitalCubit(HospitalRepository(), TokenStorage()),
+            create: (_) => HospitalCubit(HospitalRepository(), TokenStorage()),
             child: const HospitalListScreen(),
           ),
-          // const AppointmentListScreen(),
+
+          // Tab 2 — Appointments ✅ FIXED (was commented out)
+          const AppointmentListScreen(),
+
+          // Tab 3 — Records (EHR)
           const EHRScreen(),
+
+          // Tab 4 — Profile
           const _ProfileTab(),
         ],
       ),
@@ -45,11 +54,11 @@ class _UserDashboardState extends State<UserDashboard> {
         currentIndex: _currentIndex,
         onTap: _setTab,
         items: const [
-          _NavItem(icon: Icons.home_rounded,              label: 'Home'),
-          _NavItem(icon: Icons.local_hospital_rounded,    label: 'Hospitals'),
-          _NavItem(icon: Icons.calendar_today_rounded,    label: 'Appointments'),
-          _NavItem(icon: Icons.folder_open_rounded,       label: 'Records'),
-          _NavItem(icon: Icons.person_rounded,            label: 'Profile'),
+          _NavItem(icon: Icons.home_rounded, label: 'Home'),
+          _NavItem(icon: Icons.local_hospital_rounded, label: 'Hospitals'),
+          _NavItem(icon: Icons.calendar_today_rounded, label: 'Appointments'),
+          _NavItem(icon: Icons.folder_open_rounded, label: 'Records'),
+          _NavItem(icon: Icons.person_rounded, label: 'Profile'),
         ],
       ),
     );
@@ -87,7 +96,7 @@ class _UserHomeTab extends StatelessWidget {
           children: [
             _GreetingCard(user: user),
             const SizedBox(height: AppSpacing.lg),
-            Text('Quick Actions', style: AppTextStyles.headlineMedium),
+            const Text('Quick Actions', style: AppTextStyles.headlineMedium),
             const SizedBox(height: AppSpacing.md),
             GridView.count(
               crossAxisCount: 2,
@@ -124,7 +133,8 @@ class _UserHomeTab extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Upcoming Appointments', style: AppTextStyles.headlineMedium),
+            const Text('Upcoming Appointments',
+                style: AppTextStyles.headlineMedium),
             const SizedBox(height: AppSpacing.md),
             _UpcomingPlaceholder(onBook: () => onTabChange(2)),
           ],
@@ -150,8 +160,8 @@ class _GreetingCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           colors: [AppColors.primary, Color(0xFF3B82F6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -164,15 +174,15 @@ class _GreetingCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('$greeting,',
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(color: Colors.white70)),
+                  style:
+                      AppTextStyles.bodyMedium.copyWith(color: Colors.white70)),
               Text(name,
                   style: AppTextStyles.displayMedium
                       .copyWith(color: Colors.white)),
               const SizedBox(height: 4),
               Text('How are you feeling today?',
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(color: Colors.white70)),
+                  style:
+                      AppTextStyles.bodyMedium.copyWith(color: Colors.white70)),
             ],
           ),
         ),
@@ -226,8 +236,7 @@ class _QuickAction extends StatelessWidget {
               ),
               child: Icon(icon, color: color, size: 22),
             ),
-            Text(label,
-                style: AppTextStyles.labelLarge.copyWith(fontSize: 13)),
+            Text(label, style: AppTextStyles.labelLarge.copyWith(fontSize: 13)),
           ],
         ),
       ),
@@ -250,10 +259,10 @@ class _UpcomingPlaceholder extends StatelessWidget {
           borderRadius: AppRadius.lg,
           border: Border.all(color: AppColors.divider),
         ),
-        child: Row(children: [
-          const Icon(Icons.calendar_today_outlined,
+        child: const Row(children: [
+          Icon(Icons.calendar_today_outlined,
               color: AppColors.textHint, size: 36),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,8 +274,7 @@ class _UpcomingPlaceholder extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              color: AppColors.textHint),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
         ]),
       ),
     );
@@ -305,16 +313,15 @@ class _ProfileTab extends StatelessWidget {
               Text(user?.email ?? '', style: AppTextStyles.bodyMedium),
               const SizedBox(height: AppSpacing.xs),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: const BoxDecoration(
                   color: AppColors.primaryLight,
                   borderRadius: AppRadius.full,
                 ),
                 child: Text('Patient',
                     style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600)),
+                        color: AppColors.primary, fontWeight: FontWeight.w600)),
               ),
             ]),
           ),
@@ -323,8 +330,8 @@ class _ProfileTab extends StatelessWidget {
             icon: Icons.folder_open_rounded,
             label: 'My Medical Records',
             onTap: () {
-              final state = context
-                  .findAncestorStateOfType<_UserDashboardState>();
+              final state =
+                  context.findAncestorStateOfType<_UserDashboardState>();
               state?.setState(() => state._currentIndex = 3);
             },
           ),
@@ -332,8 +339,7 @@ class _ProfileTab extends StatelessWidget {
             icon: Icons.notifications_outlined,
             label: 'Notifications',
             onTap: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => const NotificationScreen())),
+                MaterialPageRoute(builder: (_) => const NotificationScreen())),
           ),
           _ProfileMenuItem(
             icon: Icons.lock_outline_rounded,
@@ -381,14 +387,13 @@ class _ProfileMenuItem extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-            color: AppColors.inputFill,
-            borderRadius: AppRadius.sm),
+        decoration: const BoxDecoration(
+            color: AppColors.inputFill, borderRadius: AppRadius.sm),
         child: Icon(icon, size: 18, color: AppColors.primary),
       ),
       title: Text(label, style: AppTextStyles.bodyLarge),
-      trailing: const Icon(Icons.chevron_right_rounded,
-          color: AppColors.textHint),
+      trailing:
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
       onTap: onTap,
     );
   }
@@ -440,9 +445,8 @@ class _BottomNav extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(item.icon,
-                          color: selected
-                              ? AppColors.primary
-                              : AppColors.textHint,
+                          color:
+                              selected ? AppColors.primary : AppColors.textHint,
                           size: 22),
                       const SizedBox(height: 3),
                       Text(item.label,
@@ -450,9 +454,8 @@ class _BottomNav extends StatelessWidget {
                             color: selected
                                 ? AppColors.primary
                                 : AppColors.textHint,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.w400,
                             fontSize: 10,
                           )),
                     ],

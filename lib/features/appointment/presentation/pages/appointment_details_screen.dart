@@ -36,7 +36,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         padding: EdgeInsets.fromLTRB(
             20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Cancel Appointment', style: AppTextStyles.headlineMedium),
+          const Text('Cancel Appointment', style: AppTextStyles.headlineMedium),
           const SizedBox(height: 16),
           TextField(
             controller: ctrl,
@@ -85,11 +85,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           padding: EdgeInsets.fromLTRB(
               20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('Reschedule', style: AppTextStyles.headlineMedium),
+            const Text('Reschedule', style: AppTextStyles.headlineMedium),
             const SizedBox(height: 16),
             ListTile(
               tileColor: AppColors.inputFill,
-              shape: RoundedRectangleBorder(borderRadius: AppRadius.md),
+              shape: const RoundedRectangleBorder(borderRadius: AppRadius.md),
               leading: const Icon(Icons.calendar_today_rounded,
                   color: AppColors.primary),
               title: Text(

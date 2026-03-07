@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:medisync_app/features/auth/data/models/auth_model.dart';
 import 'package:medisync_app/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:medisync_app/features/auth/presentation/widgets/auth_header.dart';
@@ -45,6 +46,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _icuBedsCtrl = TextEditingController();
   final _hospitalPhoneCtrl = TextEditingController();
 
+  // ── BUG 2 FIX: coordinates declared but never stored — added these two fields
+  double? _latitude;
+  double? _longitude;
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -82,6 +87,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           confirmPassword: _confirmPasswordCtrl.text,
         );
         break;
+
       case UserRole.doctor:
         cubit.registerDoctor(
           email: _emailCtrl.text.trim(),
@@ -97,13 +103,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
         break;
+
       case UserRole.hospital:
+        // ── BUG 3 FIX: latitude/longitude were never passed to registerHospital
         cubit.registerHospital(
           email: _emailCtrl.text.trim(),
           fullName: _fullNameCtrl.text.trim(),
           phone: _phoneCtrl.text.trim(),
           password: _passwordCtrl.text,
           confirmPassword: _confirmPasswordCtrl.text,
+          latitude: _latitude ?? 0.0, // ← was missing entirely
+          longitude: _longitude ?? 0.0, // ← was missing entirely
           hospitalProfile: HospitalProfile(
             hospitalName: _hospitalNameCtrl.text.trim(),
             registrationNumber: _regNumberCtrl.text.trim(),
@@ -151,7 +161,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     const SizedBox(height: AppSpacing.md),
 
-                    // Back button
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back_rounded),
@@ -177,7 +186,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Common Fields ──────────────────────────────────────────
+                    // ── Common Fields ────────────────────────────────────────
                     const _SectionHeader(title: 'Basic Information'),
                     const SizedBox(height: AppSpacing.md),
 
@@ -238,7 +247,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
 
-                    // ── Doctor Fields ──────────────────────────────────────────
+                    // ── Doctor Fields ────────────────────────────────────────
                     if (_selectedRole == UserRole.doctor) ...[
                       const SizedBox(height: AppSpacing.xl),
                       const _SectionHeader(
@@ -292,7 +301,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ],
 
-                    // ── Hospital Fields ────────────────────────────────────────
+                    // ── Hospital Fields ──────────────────────────────────────
                     if (_selectedRole == UserRole.hospital) ...[
                       const SizedBox(height: AppSpacing.xl),
                       const _SectionHeader(
@@ -401,11 +410,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ],
                       ),
+
+                      // ── BUG 4 FIX: HospitalLocationPicker was defined at bottom
+                      // but never placed inside the hospital fields section in the UI
+                      const SizedBox(height: AppSpacing.xl),
+                      const _SectionHeader(
+                        title: 'Hospital Location',
+                        subtitle: 'For map visibility',
+                        iconData: Icons.location_on_rounded,
+                        iconColor: AppColors.primary,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      HospitalLocationPicker(
+                        onLocationSelected: (lat, lon) {
+                          _latitude = lat;
+                          _longitude = lon;
+                        },
+                      ),
                     ],
 
                     const SizedBox(height: AppSpacing.xl),
 
-                    // Submit
                     _SubmitButton(
                       role: _selectedRole,
                       isLoading: isLoading,
@@ -598,9 +623,7 @@ class _SubmitButton extends StatelessWidget {
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white,
-                ),
+                    strokeWidth: 2.5, color: Colors.white),
               )
             : Text(
                 _label,
@@ -644,6 +667,159 @@ class _ApprovalNotice extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Hospital Location Picker ─────────────────────────────────────────────────
+
+class HospitalLocationPicker extends StatefulWidget {
+  final void Function(double lat, double lon) onLocationSelected;
+
+  const HospitalLocationPicker({
+    super.key,
+    required this.onLocationSelected,
+  });
+
+  @override
+  State<HospitalLocationPicker> createState() => _HospitalLocationPickerState();
+}
+
+class _HospitalLocationPickerState extends State<HospitalLocationPicker> {
+  final _latCtrl = TextEditingController();
+  final _lonCtrl = TextEditingController();
+  bool _detecting = false;
+  String? _status;
+
+  Future<void> _detect() async {
+    setState(() {
+      _detecting = true;
+      _status = null;
+    });
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        setState(() {
+          _detecting = false;
+          _status = 'Location permission denied. Enter manually.';
+        });
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+      _latCtrl.text = pos.latitude.toStringAsFixed(7);
+      _lonCtrl.text = pos.longitude.toStringAsFixed(7);
+      widget.onLocationSelected(pos.latitude, pos.longitude);
+      setState(() {
+        _detecting = false;
+        _status = '✓ Location detected';
+      });
+    } catch (_) {
+      setState(() {
+        _detecting = false;
+        _status = 'Could not detect location. Enter manually.';
+      });
+    }
+  }
+
+  void _onManualChange() {
+    final lat = double.tryParse(_latCtrl.text);
+    final lon = double.tryParse(_lonCtrl.text);
+    if (lat != null && lon != null) {
+      widget.onLocationSelected(lat, lon);
+    }
+  }
+
+  @override
+  void dispose() {
+    _latCtrl.dispose();
+    _lonCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Hospital Location',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        const SizedBox(height: 8),
+        const Text(
+          'Required for map view. Tap "Detect" or enter coordinates manually.',
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _detecting ? null : _detect,
+            icon: _detecting
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location_rounded, size: 16),
+            label: Text(_detecting
+                ? 'Detecting location…'
+                : 'Auto-detect Hospital Location'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+            ),
+          ),
+        ),
+        if (_status != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            _status!,
+            style: TextStyle(
+              fontSize: 12,
+              color:
+                  _status!.startsWith('✓') ? AppColors.accent : AppColors.error,
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _latCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true, signed: true),
+                decoration: const InputDecoration(
+                  labelText: 'Latitude',
+                  hintText: 'e.g. 19.0760',
+                  prefixIcon: Icon(Icons.straighten_rounded, size: 16),
+                ),
+                onChanged: (_) => _onManualChange(),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                controller: _lonCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true, signed: true),
+                decoration: const InputDecoration(
+                  labelText: 'Longitude',
+                  hintText: 'e.g. 72.8777',
+                  prefixIcon: Icon(Icons.straighten_rounded, size: 16),
+                ),
+                onChanged: (_) => _onManualChange(),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

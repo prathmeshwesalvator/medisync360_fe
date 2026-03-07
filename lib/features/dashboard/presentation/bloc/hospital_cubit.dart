@@ -1,8 +1,14 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE: features/dashboard/presentation/bloc/hospital_cubit.dart
+// ACTION: REPLACE full file (added loadHospitalsForMap method)
+// ─────────────────────────────────────────────────────────────────────────────
+
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:medisync_app/features/auth/data/repository/auth_repository.dart';
-import 'package:medisync_app/features/dashboard/data/models/hospital_model.dart';
-import 'package:medisync_app/features/dashboard/data/repository/hospital_repository.dart';
+import '../../data/models/hospital_model.dart';
+import '../../data/repository/hospital_repository.dart';
 import 'package:medisync_app/global/storage/token_storage.dart';
+import 'package:medisync_app/features/auth/data/repository/auth_repository.dart';
+
 part 'hospital_state.dart';
 
 class HospitalCubit extends Cubit<HospitalState> {
@@ -12,8 +18,7 @@ class HospitalCubit extends Cubit<HospitalState> {
   HospitalCubit(this._repository, this._tokenStorage)
       : super(const HospitalInitial());
 
-  // ─── Public: List & Search ─────────────────────────────────────────────────
-
+  // ── List (search + filter) ────────────────────────────────────────────────
   Future<void> loadHospitals({
     String query = '',
     String city = '',
@@ -36,13 +41,24 @@ class HospitalCubit extends Cubit<HospitalState> {
     } on ApiException catch (e) {
       emit(HospitalError(e.message));
     } catch (_) {
-      emit(const HospitalError(
-          'Unable to load hospitals. Check your connection.'));
+      emit(const HospitalError('Unable to load hospitals. Check your connection.'));
     }
   }
 
-  // ─── Nearby ────────────────────────────────────────────────────────────────
+  // ── Map: all hospitals with coordinates ───────────────────────────────────
+  Future<void> loadHospitalsForMap() async {
+    emit(const HospitalLoading());
+    try {
+      final result = await _repository.getHospitalsForMap();
+      emit(HospitalMapLoaded(hospitals: result.results));
+    } on ApiException catch (e) {
+      emit(HospitalError(e.message));
+    } catch (_) {
+      emit(const HospitalError('Unable to load map data.'));
+    }
+  }
 
+  // ── Nearby ────────────────────────────────────────────────────────────────
   Future<void> loadNearbyHospitals({
     required double lat,
     required double lon,
@@ -60,8 +76,7 @@ class HospitalCubit extends Cubit<HospitalState> {
     }
   }
 
-  // ─── Detail ────────────────────────────────────────────────────────────────
-
+  // ── Detail ────────────────────────────────────────────────────────────────
   Future<void> loadHospitalDetail(int id) async {
     emit(const HospitalLoading());
     try {
@@ -74,8 +89,7 @@ class HospitalCubit extends Cubit<HospitalState> {
     }
   }
 
-  // ─── My Hospital (Hospital User) ───────────────────────────────────────────
-
+  // ── My Hospital ───────────────────────────────────────────────────────────
   Future<void> loadMyHospital() async {
     emit(const HospitalLoading());
     try {
@@ -93,8 +107,7 @@ class HospitalCubit extends Cubit<HospitalState> {
     }
   }
 
-  // ─── Update Capacity ───────────────────────────────────────────────────────
-
+  // ── Capacity update ───────────────────────────────────────────────────────
   Future<void> updateCapacity({
     required int availableBeds,
     required int icuAvailable,

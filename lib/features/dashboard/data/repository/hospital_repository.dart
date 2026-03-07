@@ -1,13 +1,19 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE: features/dashboard/data/repository/hospital_repository.dart
+// ACTION: REPLACE full file (added getHospitalsForMap method only)
+// ─────────────────────────────────────────────────────────────────────────────
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:medisync_app/features/auth/data/repository/auth_repository.dart';
-import 'package:medisync_app/features/dashboard/data/models/hospital_model.dart';
+import '../models/hospital_model.dart';
 import 'package:medisync_app/global/constants/app_constants.dart';
+import 'package:medisync_app/features/auth/data/repository/auth_repository.dart';
 
 class HospitalRepository {
   final http.Client _client;
 
-  HospitalRepository({http.Client? client}) : _client = client ?? http.Client();
+  HospitalRepository({http.Client? client})
+      : _client = client ?? http.Client();
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -29,8 +35,7 @@ class HospitalRepository {
     );
   }
 
-  // ─── Public ────────────────────────────────────────────────────────────────
-
+  // ── List (search + filter) ────────────────────────────────────────────────
   Future<HospitalListResponse> getHospitals({
     String query = '',
     String city = '',
@@ -50,21 +55,22 @@ class HospitalRepository {
     return HospitalListResponse.fromJson(body['data']);
   }
 
-  Future<HospitalModel> getHospitalDetail(int id) async {
-    final response = await _client.get(
-      Uri.parse('${AppConstants.hospitalsEndpoint}$id/'),
-      headers: _headers,
-    );
+  // ── Map: all hospitals that have coordinates ──────────────────────────────
+  // Calls GET /api/hospitals/map/ — new endpoint
+  Future<HospitalListResponse> getHospitalsForMap() async {
+    final uri = Uri.parse(AppConstants.hospitalsMapEndpoint);
+    final response = await _client.get(uri, headers: _headers);
     final body = _parse(response);
-    return HospitalModel.fromJson(body['data']);
+    return HospitalListResponse.fromJson(body['data']);
   }
 
+  // ── Nearby (sorted by distance) ───────────────────────────────────────────
   Future<HospitalListResponse> getNearbyHospitals({
     required double lat,
     required double lon,
     double radius = 20,
   }) async {
-    final uri = Uri.parse('${AppConstants.hospitalsEndpoint}nearby/').replace(
+    final uri = Uri.parse(AppConstants.nearbyHospitalsEndpoint).replace(
       queryParameters: {
         'lat': '$lat',
         'lon': '$lon',
@@ -76,11 +82,20 @@ class HospitalRepository {
     return HospitalListResponse.fromJson(body['data']);
   }
 
-  // ─── Hospital User ─────────────────────────────────────────────────────────
+  // ── Detail ────────────────────────────────────────────────────────────────
+  Future<HospitalModel> getHospitalDetail(int id) async {
+    final response = await _client.get(
+      Uri.parse(AppConstants.hospitalDetail(id)),
+      headers: _headers,
+    );
+    final body = _parse(response);
+    return HospitalModel.fromJson(body['data']);
+  }
 
+  // ── My hospital (hospital user) ───────────────────────────────────────────
   Future<HospitalModel> getMyHospital({required String token}) async {
     final response = await _client.get(
-      Uri.parse('${AppConstants.hospitalsEndpoint}my/'),
+      Uri.parse(AppConstants.myHospitalEndpoint),
       headers: _authHeaders(token),
     );
     final body = _parse(response);
@@ -94,7 +109,7 @@ class HospitalRepository {
     required int emergencyAvailable,
   }) async {
     final response = await _client.post(
-      Uri.parse('${AppConstants.hospitalsEndpoint}my/capacity/'),
+      Uri.parse(AppConstants.myCapacityEndpoint),
       headers: _authHeaders(token),
       body: jsonEncode({
         'available_beds': availableBeds,

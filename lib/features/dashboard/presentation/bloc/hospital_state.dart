@@ -1,5 +1,9 @@
-part of 'hospital_cubit.dart';
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE: features/dashboard/presentation/bloc/hospital_state.dart
+// ACTION: REPLACE full file (added HospitalMapLoaded state)
+// ─────────────────────────────────────────────────────────────────────────────
 
+part of 'hospital_cubit.dart';
 
 abstract class HospitalState {
   const HospitalState();
@@ -25,32 +29,33 @@ class HospitalListLoaded extends HospitalState {
   });
 }
 
+// ── NEW: emitted after loadHospitalsForMap() ──────────────────────────────────
+class HospitalMapLoaded extends HospitalState {
+  final List<HospitalModel> hospitals;
+  const HospitalMapLoaded({required this.hospitals});
+}
+
 class NearbyHospitalsLoaded extends HospitalState {
   final List<HospitalModel> hospitals;
-
   const NearbyHospitalsLoaded({required this.hospitals});
 }
 
 class HospitalDetailLoaded extends HospitalState {
   final HospitalModel hospital;
-
   const HospitalDetailLoaded({required this.hospital});
 }
 
 class MyHospitalLoaded extends HospitalState {
   final HospitalModel hospital;
-
   const MyHospitalLoaded({required this.hospital});
 }
 
 class CapacityUpdated extends HospitalState {
   final HospitalModel hospital;
-
   const CapacityUpdated({required this.hospital});
 }
 
 class HospitalError extends HospitalState {
   final String message;
-
   const HospitalError(this.message);
 }

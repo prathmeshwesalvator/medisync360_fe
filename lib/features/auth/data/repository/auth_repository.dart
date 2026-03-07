@@ -125,6 +125,8 @@ class AuthRepository {
     required String password,
     required String confirmPassword,
     required HospitalProfile hospitalProfile,
+    required double latitude,
+    required double longitude,
   }) async {
     final response = await _client.post(
       Uri.parse(AppConstants.registerHospitalEndpoint),
@@ -136,6 +138,8 @@ class AuthRepository {
         'password': password,
         'confirm_password': confirmPassword,
         'hospital_profile': hospitalProfile.toJson(),
+        'latitude': latitude,
+        'longitude': longitude,
       }),
     );
     final body = _parseResponse(response);

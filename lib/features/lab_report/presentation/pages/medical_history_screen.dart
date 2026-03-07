@@ -216,7 +216,7 @@ class _BMICard extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.md),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('BMI', style: AppTextStyles.caption),
+          const Text('BMI', style: AppTextStyles.caption),
           Text(_label,
               style: AppTextStyles.titleLarge.copyWith(color: _color)),
           Text('${height.toStringAsFixed(0)} cm  ·  '

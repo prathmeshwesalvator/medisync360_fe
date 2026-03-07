@@ -147,9 +147,9 @@ class _PrescriptionCard extends StatelessWidget {
               AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
           children: rx.items.isEmpty
               ? [
-                  Padding(
+                  const Padding(
                     padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                        EdgeInsets.symmetric(vertical: AppSpacing.sm),
                     child: Text('No medicines listed.',
                         style: AppTextStyles.bodyMedium),
                   )

@@ -93,10 +93,10 @@ class _NoteCard extends StatelessWidget {
           // Header
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECFEFF),
+            decoration: const BoxDecoration(
+              color: Color(0xFFECFEFF),
               borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+                  BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(children: [
               Container(

@@ -137,7 +137,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
                         // Fee
                         Container(
                           padding: const EdgeInsets.all(AppSpacing.md),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                               color: AppColors.primaryLight,
                               borderRadius: AppRadius.md),
                           child: Row(
@@ -208,7 +208,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
                                           const EdgeInsets.symmetric(
                                               horizontal: 10,
                                               vertical: 6),
-                                      decoration: BoxDecoration(
+                                      decoration: const BoxDecoration(
                                           color: AppColors.inputFill,
                                           borderRadius: AppRadius.md),
                                       child: Text(
@@ -346,7 +346,7 @@ class _ReviewTile extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
             color: AppColors.inputFill, borderRadius: AppRadius.md),
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

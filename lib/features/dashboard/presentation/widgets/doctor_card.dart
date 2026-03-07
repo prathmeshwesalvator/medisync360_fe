@@ -69,7 +69,7 @@ class DoctorCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textSecondary),
                 const SizedBox(width: 2),
-                Text('${doctor.city}', style: AppTextStyles.caption),
+                Text(doctor.city, style: AppTextStyles.caption),
                 const Spacer(),
                 Text('₹${doctor.consultationFee.toStringAsFixed(0)}',
                     style: AppTextStyles.labelLarge.copyWith(color: AppColors.primary)),

@@ -210,11 +210,11 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                         strokeWidth: 2, color: AppColors.primary)),
               )
             else if (_slotsData == null)
-              _NoSlots(message: 'No slots available')
+              const _NoSlots(message: 'No slots available')
             else if (_slotsData!.isOnLeave)
-              _NoSlots(message: 'Doctor is on leave this day')
+              const _NoSlots(message: 'Doctor is on leave this day')
             else if (_slotsData!.slots.isEmpty)
-              _NoSlots(message: 'No available slots for this day')
+              const _NoSlots(message: 'No available slots for this day')
             else
               Wrap(
                 spacing: 8,

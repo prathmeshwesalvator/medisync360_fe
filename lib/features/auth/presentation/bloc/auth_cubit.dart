@@ -125,6 +125,8 @@ class AuthCubit extends Cubit<AuthState> {
     required String password,
     required String confirmPassword,
     required HospitalProfile hospitalProfile,
+    required double latitude,
+    required double longitude,
   }) async {
     emit(const AuthLoading());
     try {
@@ -135,6 +137,9 @@ class AuthCubit extends Cubit<AuthState> {
         password: password,
         confirmPassword: confirmPassword,
         hospitalProfile: hospitalProfile,
+        latitude: latitude,
+        longitude: longitude,
+
       );
       emit(const AuthPendingApproval(
         message:

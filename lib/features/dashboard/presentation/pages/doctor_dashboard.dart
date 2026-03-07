@@ -95,8 +95,8 @@ class _DoctorHomeTabState extends State<_DoctorHomeTab> {
             // Welcome banner
             Container(
               padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
                   colors: [AppColors.doctorRole, Color(0xFF5B21B6)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -139,7 +139,7 @@ class _DoctorHomeTabState extends State<_DoctorHomeTab> {
                     appts.where((a) => a.status == 'completed').length;
 
                 return Column(children: [
-                  Text("Today's Overview", style: AppTextStyles.headlineMedium),
+                  const Text("Today's Overview", style: AppTextStyles.headlineMedium),
                   const SizedBox(height: AppSpacing.md),
                   GridView.count(
                     crossAxisCount: 2,
@@ -181,7 +181,7 @@ class _DoctorHomeTabState extends State<_DoctorHomeTab> {
             const SizedBox(height: AppSpacing.lg),
 
             // Today's schedule
-            Text("Today's Schedule", style: AppTextStyles.headlineMedium),
+            const Text("Today's Schedule", style: AppTextStyles.headlineMedium),
             const SizedBox(height: AppSpacing.md),
 
             BlocBuilder<AppointmentCubit, AppointmentState>(

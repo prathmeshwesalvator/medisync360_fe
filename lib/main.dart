@@ -21,10 +21,9 @@ import 'package:medisync_app/features/lab_report/data/repository/lab_report_repo
 import 'package:medisync_app/features/lab_report/presentation/bloc/lab_report_cubit.dart';
 import 'package:medisync_app/features/notification/data/repository/notification_repository.dart';
 import 'package:medisync_app/features/notification/presentation/bloc/notification_cubit.dart';
+import 'package:medisync_app/global/constants/app_constants.dart';
 import 'package:medisync_app/global/storage/token_storage.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
-
-
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,55 +39,51 @@ class MediSyncApp extends StatelessWidget {
     final tokenStorage = TokenStorage();
 
     return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (_) => AuthCubit(
-            AuthRepository(),
-            tokenStorage: tokenStorage,
-          )..checkSession(),
-        ),
-        BlocProvider(
-          create: (_) =>
-              HospitalCubit(HospitalRepository(), tokenStorage),
-        ),
-        BlocProvider(
-          create: (_) =>
-              DoctorCubit(DoctorRepository(), tokenStorage),
-        ),
-        BlocProvider(
-          create: (_) =>
-              AppointmentCubit(AppointmentRepository(), tokenStorage),
-        ),
-        BlocProvider(
-          create: (_) =>
-              EHRCubit(EHRRepository(), tokenStorage),
-        ),
-        BlocProvider(
-          create: (_) => LabReportCubit(
-            LabReportRepository(storage: tokenStorage),
+        providers: [
+          BlocProvider(
+            create: (_) => AuthCubit(
+              AuthRepository(),
+              tokenStorage: tokenStorage,
+            )..checkSession(),
           ),
-        ),
-        BlocProvider(
-          create: (_) => NotificationCubit(
-            NotificationRepository(storage: tokenStorage),
+          BlocProvider(
+            create: (_) => HospitalCubit(HospitalRepository(), tokenStorage),
           ),
-        ),
-      ],
-      child: MaterialApp(
-        title: 'MediSync 360',
-        debugShowCheckedModeBanner: false,
-        theme: buildAppTheme(),
-        home: const _SplashRouter(),
-        routes: {
-          '/login':              (_) => const LoginScreen(),
-          '/register':           (_) => const RegisterScreen(),
-          '/dashboard/user':     (_) => const UserDashboard(),
-          '/dashboard/doctor':   (_) => const DoctorDashboard(),
-          '/dashboard/hospital': (_) => const HospitalDashboard(),
-          '/dashboard/admin':    (_) => const _AdminPlaceholder(),
-        },
-      ),
-    );
+          BlocProvider(
+            create: (_) => DoctorCubit(DoctorRepository(), tokenStorage),
+          ),
+          BlocProvider(
+            create: (_) =>
+                AppointmentCubit(AppointmentRepository(), tokenStorage),
+          ),
+          BlocProvider(
+            create: (_) => EHRCubit(EHRRepository(), tokenStorage),
+          ),
+          BlocProvider(
+            create: (_) => LabReportCubit(
+              LabReportRepository(storage: tokenStorage),
+            ),
+          ),
+          BlocProvider(
+            create: (_) => NotificationCubit(
+              NotificationRepository(storage: tokenStorage),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          title: 'MediSync 360',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          home: const _SplashRouter(),
+          routes: {
+            '/login': (_) => const LoginScreen(),
+            '/register': (_) => const RegisterScreen(),
+            '/dashboard/user': (_) => const UserDashboard(),
+            '/dashboard/doctor': (_) => const DoctorDashboard(),
+            '/dashboard/hospital': (_) => const HospitalDashboard(),
+            '/dashboard/admin': (_) => const _AdminPlaceholder(),
+          },
+        ));
   }
 }
 
@@ -108,7 +103,7 @@ class _SplashRouter extends StatelessWidget {
             ),
           );
         }
-        if (state is AuthSuccess)         return _dashboardFor(state.user.role);
+        if (state is AuthSuccess) return _dashboardFor(state.user.role);
         if (state is AuthPendingApproval) return const _PendingApprovalScreen();
         return const LoginScreen();
       },
@@ -117,10 +112,14 @@ class _SplashRouter extends StatelessWidget {
 
   Widget _dashboardFor(String role) {
     switch (role) {
-      case 'doctor':   return const DoctorDashboard();
-      case 'hospital': return const HospitalDashboard();
-      case 'admin':    return const _AdminPlaceholder();
-      default:         return const UserDashboard();
+      case 'doctor':
+        return const DoctorDashboard();
+      case 'hospital':
+        return const HospitalDashboard();
+      case 'admin':
+        return const _AdminPlaceholder();
+      default:
+        return const UserDashboard();
     }
   }
 }
@@ -140,7 +139,8 @@ class _PendingApprovalScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 96, height: 96,
+                width: 96,
+                height: 96,
                 decoration: BoxDecoration(
                   color: AppColors.warning.withOpacity(0.15),
                   borderRadius: AppRadius.xl,
@@ -171,12 +171,10 @@ class _PendingApprovalScreen extends StatelessWidget {
   }
 }
 
-
-
 // ── Admin Placeholder ─────────────────────────────────────────────────────────
 
 class _AdminPlaceholder extends StatefulWidget {
-  const _AdminPlaceholder({super.key});
+  const _AdminPlaceholder();
 
   @override
   State<_AdminPlaceholder> createState() => _AdminPlaceholderState();
@@ -211,7 +209,7 @@ class _AdminPlaceholderState extends State<_AdminPlaceholder> {
         body: SafeArea(
           child: InAppWebView(
             initialUrlRequest: URLRequest(
-              url: WebUri("http://10.28.164.173:8000/admin/"),
+              url: WebUri(AppConstants.adminBase),
             ),
             onWebViewCreated: (controller) {
               webViewController = controller;

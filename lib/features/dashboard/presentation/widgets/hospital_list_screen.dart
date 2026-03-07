@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:medisync_app/features/dashboard/presentation/bloc/hospital_cubit.dart';
-import 'package:medisync_app/features/dashboard/presentation/widgets/empty_state.dart';
 import 'package:medisync_app/features/dashboard/presentation/widgets/hospital_details_screen.dart';
-import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
-import 'package:medisync_app/features/dashboard/presentation/widgets/medisync_appbar.dart';
+import '../bloc/hospital_cubit.dart';
+import 'hospital_card.dart';
+import 'hospital_search_bar.dart';
+import 'empty_state.dart';
+import 'loading.dart';
+import 'medisync_appbar.dart';
+import '../pages/hospital_map_screen.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
-import '../widgets/hospital_card.dart';
-import '../widgets/hospital_search_bar.dart';
 
 class HospitalListScreen extends StatefulWidget {
   const HospitalListScreen({super.key});
@@ -45,9 +46,26 @@ class _HospitalListScreenState extends State<HospitalListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const MediSyncAppBar(
+      appBar: MediSyncAppBar(
         title: 'Find Hospitals',
-        showBack: true,
+        actions: [
+          // ── Map toggle button ──────────────────────────────────────────────
+          IconButton(
+            icon: const Icon(Icons.map_rounded),
+            tooltip: 'Map View',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider.value(
+                    value: context.read<HospitalCubit>(),
+                    child: const HospitalMapScreen(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -67,6 +85,42 @@ class _HospitalListScreenState extends State<HospitalListScreen> {
                       selected: _icuOnly,
                       onSelected: _toggleIcu,
                       icon: Icons.local_hospital_rounded,
+                    ),
+                    const SizedBox(width: 8),
+                    // ── Map banner chip ──────────────────────────────────────
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BlocProvider.value(
+                            value: context.read<HospitalCubit>(),
+                            child: const HospitalMapScreen(),
+                          ),
+                        ),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.hospitalRole.withOpacity(0.1),
+                          borderRadius: AppRadius.full,
+                          border: Border.all(
+                              color: AppColors.hospitalRole.withOpacity(0.4)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.map_rounded,
+                                size: 14, color: AppColors.hospitalRole),
+                            SizedBox(width: 6),
+                            Text('Map View',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.hospitalRole,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -176,12 +230,15 @@ class _FilterChip extends StatelessWidget {
           children: [
             Icon(icon,
                 size: 14,
-                color: selected ? Colors.white : AppColors.textSecondary),
+                color:
+                    selected ? Colors.white : AppColors.textSecondary),
             const SizedBox(width: 6),
             Text(
               label,
-              style: AppTextStyles.caption.copyWith(
-                color: selected ? Colors.white : AppColors.textSecondary,
+              style: TextStyle(
+                fontSize: 12,
+                color:
+                    selected ? Colors.white : AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
