@@ -7,7 +7,6 @@ import 'package:medisync_app/global/theme/app_theme.dart';
 import 'package:medisync_app/global/validators/validator.dart';
 import 'package:medisync_app/global/widgets/app_textfield.dart';
 
-
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -143,16 +142,19 @@ class _LoginScreenState extends State<LoginScreen> {
   void _routeToDashboard(BuildContext context, String role) {
     switch (role) {
       case UserRole.doctor:
-        Navigator.pushReplacementNamed(context, '/doctor-dashboard');
+        Navigator.pushReplacementNamed(context, '/dashboard/doctor');
         break;
+
       case UserRole.hospital:
-        Navigator.pushReplacementNamed(context, '/hospital-dashboard');
+        Navigator.pushReplacementNamed(context, '/dashboard/hospital');
         break;
+
       case UserRole.admin:
-        Navigator.pushReplacementNamed(context, '/admin-dashboard');
+        Navigator.pushReplacementNamed(context, '/dashboard/admin');
         break;
+
       default:
-        Navigator.pushReplacementNamed(context, '/user-dashboard');
+        Navigator.pushReplacementNamed(context, '/dashboard/user');
     }
   }
 }

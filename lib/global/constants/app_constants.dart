@@ -11,7 +11,7 @@ class AppConstants {
   // static const String _base = 'http://$_host:8000/api';
   static const String _base = 'https://medisync360-be.onrender.com/api';
   // static const String adminBase = 'http://$_host:8000/admin/';
-  static const String adminBase = 'https://medisync360-be.onrender.com/';
+  static const String adminBase = 'https://medisync360-be.onrender.com/admin/';
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   static const String loginEndpoint = '$_base/auth/login/';

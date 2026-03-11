@@ -63,7 +63,6 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
         ],
         bottom: TabBar(
           controller: _tab,
-          isScrollable: true,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textSecondary,
           indicatorColor: AppColors.primary,

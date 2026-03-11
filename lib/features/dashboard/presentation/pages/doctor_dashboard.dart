@@ -147,7 +147,7 @@ class _DoctorHomeTabState extends State<_DoctorHomeTab> {
                     crossAxisSpacing: AppSpacing.sm,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.4,
+                    childAspectRatio: 1.3,
                     children: [
                       StatCard(
                         label: 'Total Today',

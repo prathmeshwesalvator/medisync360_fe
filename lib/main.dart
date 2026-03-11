@@ -193,7 +193,6 @@ class _AdminPlaceholderState extends State<_AdminPlaceholder> {
       }
     }
 
-    // No web history -> close app
     SystemNavigator.pop();
   }
 
