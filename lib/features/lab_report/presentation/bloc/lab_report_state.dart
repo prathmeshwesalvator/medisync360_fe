@@ -1,23 +1,61 @@
-import 'package:medisync_app/features/lab_report/data/model/lab_report_model.dart';
+import 'package:equatable/equatable.dart';
+import '../../data/model/lab_report_model.dart';
 
+abstract class LabReportState extends Equatable {
+  const LabReportState();
+  @override
+  List<Object?> get props => [];
+}
 
-abstract class LabReportState {}
+class LabReportInitial extends LabReportState {}
 
-class LabReportInitial  extends LabReportState {}
-class LabReportLoading  extends LabReportState {}
-class LabReportLoaded   extends LabReportState {
+class LabReportUploading extends LabReportState {}
+
+class LabReportAnalyzing extends LabReportState {
+  final int reportId;
+  const LabReportAnalyzing({required this.reportId});
+  @override
+  List<Object?> get props => [reportId];
+}
+
+class LabReportLoaded extends LabReportState {
+  final LabReport report;
+  const LabReportLoaded({required this.report});
+  @override
+  List<Object?> get props => [report];
+}
+
+class LabReportListLoading extends LabReportState {}
+
+class LabReportListLoaded extends LabReportState {
   final List<LabReport> reports;
-  LabReportLoaded(this.reports);
+  const LabReportListLoaded({required this.reports});
+  @override
+  List<Object?> get props => [reports];
 }
-class LabReportDetail   extends LabReportState {
-  final LabReport report;
-  LabReportDetail(this.report);
+
+class LabReportDetailLoading extends LabReportState {}
+
+class LabReportAsking extends LabReportState {}
+
+class LabReportAnswered extends LabReportState {
+  final String question;
+  final String answer;
+  const LabReportAnswered({required this.question, required this.answer});
+  @override
+  List<Object?> get props => [question, answer];
 }
-class LabReportUploaded extends LabReportState {
-  final LabReport report;
-  LabReportUploaded(this.report);
+
+class LabReportQuestionsLoaded extends LabReportState {
+  final List<ReportQA> questions;
+  const LabReportQuestionsLoaded({required this.questions});
+  @override
+  List<Object?> get props => [questions];
 }
-class LabReportError    extends LabReportState {
+
+class LabReportError extends LabReportState {
   final String message;
-  LabReportError(this.message);
+  const LabReportError({required this.message});
+  @override
+  List<Object?> get props => [message];
 }

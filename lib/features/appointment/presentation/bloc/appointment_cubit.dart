@@ -3,6 +3,7 @@ import 'package:medisync_app/features/appointment/data/models/appointment_model.
 import 'package:medisync_app/features/appointment/data/repository/appointment_repository.dart';
 import 'package:medisync_app/features/auth/data/repository/auth_repository.dart';
 import 'package:medisync_app/global/storage/token_storage.dart';
+
 part 'appointment_state.dart';
 
 class AppointmentCubit extends Cubit<AppointmentState> {
@@ -39,8 +40,11 @@ class AppointmentCubit extends Cubit<AppointmentState> {
         emit(const AppointmentError('Session expired.'));
         return;
       }
-      final list =
-          await _repo.getDoctorAppointments(token, status: status, date: date);
+      final list = await _repo.getDoctorAppointments(
+        token,
+        status: status,
+        date: date,
+      );
       emit(AppointmentListLoaded(list));
     } on ApiException catch (e) {
       emit(AppointmentError(e.message));
@@ -49,13 +53,12 @@ class AppointmentCubit extends Cubit<AppointmentState> {
     }
   }
 
+  // FIX: signature changed — takes slotId (int) not slotTime (String).
+  // Backend BookAppointmentView expects { doctor: int, slot_id: int }.
   Future<void> book({
     required int doctorId,
-    required String date,
-    required String slotTime,
-    required String type,
+    required int slotId,
     String reason = '',
-    String symptoms = '',
     int? hospitalId,
   }) async {
     emit(const AppointmentLoading());
@@ -68,11 +71,8 @@ class AppointmentCubit extends Cubit<AppointmentState> {
       final appt = await _repo.bookAppointment(
         token: token,
         doctorId: doctorId,
-        date: date,
-        slotTime: slotTime,
-        type: type,
+        slotId: slotId,
         reason: reason,
-        symptoms: symptoms,
         hospitalId: hospitalId,
       );
       emit(AppointmentBooked(appt));
@@ -101,8 +101,9 @@ class AppointmentCubit extends Cubit<AppointmentState> {
     }
   }
 
-  Future<void> reschedule(int id, String newDate, String newSlotTime,
-      {String reason = ''}) async {
+  // FIX: signature changed — takes newSlotId (int), not (newDate, newSlotTime).
+  // Backend RescheduleAppointmentView expects { slot_id: int }.
+  Future<void> reschedule(int id, int newSlotId) async {
     emit(const AppointmentLoading());
     try {
       final token = await _token();
@@ -110,8 +111,7 @@ class AppointmentCubit extends Cubit<AppointmentState> {
         emit(const AppointmentError('Session expired.'));
         return;
       }
-      final appt = await _repo.reschedule(id, token, newDate, newSlotTime,
-          reason: reason);
+      final appt = await _repo.reschedule(id, token, newSlotId);
       emit(AppointmentActionSuccess(
           message: 'Appointment rescheduled.', appointment: appt));
     } on ApiException catch (e) {

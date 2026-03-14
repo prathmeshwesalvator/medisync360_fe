@@ -22,7 +22,6 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
 
-  // (label, status filter)
   static const _tabs = [
     ('All', ''),
     ('Upcoming', 'pending'),
@@ -72,7 +71,42 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
               .loadMyAppointments(status: _tabs[i].$2),
         ),
       ),
-      body: BlocBuilder<AppointmentCubit, AppointmentState>(
+      // FIX: use BlocConsumer to show toasts for cancel/reschedule actions
+      body: BlocConsumer<AppointmentCubit, AppointmentState>(
+        listener: (context, state) {
+          if (state is AppointmentActionSuccess) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(
+                content: Text('✓ ${state.message}'),
+                backgroundColor: AppColors.accent,
+                behavior: SnackBarBehavior.floating,
+              ));
+            // Reload after action
+            context.read<AppointmentCubit>().loadMyAppointments();
+          }
+          if (state is AppointmentBooked) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  content: Text('✓ Appointment booked successfully!'),
+                  backgroundColor: AppColors.accent,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            context.read<AppointmentCubit>().loadMyAppointments();
+          }
+          if (state is AppointmentError) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+              ));
+          }
+        },
         builder: (context, state) {
           if (state is AppointmentLoading) return const LoadingWidget();
 

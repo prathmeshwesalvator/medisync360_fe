@@ -1,9 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:medisync_app/features/lab_report/presentation/bloc/lab_report_cubit.dart';
-import 'package:medisync_app/features/lab_report/presentation/bloc/lab_report_state.dart';
-import 'package:medisync_app/global/widgets/app_textfield.dart';
-
+import 'package:image_picker/image_picker.dart';
+import '../bloc/lab_report_cubit.dart';
+import '../bloc/lab_report_state.dart';
+import 'lab_report_result_screen.dart';
 
 class UploadLabReportScreen extends StatefulWidget {
   const UploadLabReportScreen({super.key});
@@ -13,234 +14,210 @@ class UploadLabReportScreen extends StatefulWidget {
 }
 
 class _UploadLabReportScreenState extends State<UploadLabReportScreen> {
-  final _titleCtrl   = TextEditingController();
-  final _fileUrlCtrl = TextEditingController();
-  final _notesCtrl   = TextEditingController();
-  String _selectedType = '';
-  DateTime _testDate   = DateTime.now();
-  bool _loading        = false;
+  File? _selectedImage;
+  String _reportType = 'other';
+  final _titleController = TextEditingController();
+  final _notesController = TextEditingController();
 
-  final List<String> _types = [
-    'CBC', 'LFT', 'KFT', 'Lipid Profile',
-    'Thyroid', 'Blood Sugar', 'Urine', 'Urine Culture',
-    'Stool', 'HbA1c', 'Other',
+  final List<Map<String, String>> _reportTypes = [
+    {'value': 'cbc', 'label': 'Complete Blood Count'},
+    {'value': 'blood_test', 'label': 'Blood Test'},
+    {'value': 'lipid_panel', 'label': 'Lipid Panel'},
+    {'value': 'liver_function', 'label': 'Liver Function'},
+    {'value': 'kidney_function', 'label': 'Kidney Function'},
+    {'value': 'thyroid', 'label': 'Thyroid Panel'},
+    {'value': 'diabetes', 'label': 'Diabetes Panel'},
+    {'value': 'urine_test', 'label': 'Urine Test'},
+    {'value': 'other', 'label': 'Other'},
   ];
 
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _fileUrlCtrl.dispose();
-    _notesCtrl.dispose();
-    super.dispose();
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: source, imageQuality: 90);
+    if (picked != null) setState(() => _selectedImage = File(picked.path));
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+  void _showImagePicker() {
+    showModalBottomSheet(
       context: context,
-      initialDate: _testDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            const Text('Select Image Source',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+            ),
+          ],
+        ),
+      ),
     );
-    if (picked != null) setState(() => _testDate = picked);
   }
 
-  void _submit() {
-    if (_titleCtrl.text.trim().isEmpty) {
-      _snack('Please enter a report title');
+  void _upload() {
+    if (_selectedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select an image first')));
       return;
     }
-    if (_selectedType.isEmpty) {
-      _snack('Please select a report type');
-      return;
-    }
-    if (_fileUrlCtrl.text.trim().isEmpty) {
-      _snack('Please enter the file URL');
-      return;
-    }
-
-    final date =
-        '${_testDate.year}-${_testDate.month.toString().padLeft(2, '0')}'
-        '-${_testDate.day.toString().padLeft(2, '0')}';
-
     context.read<LabReportCubit>().uploadReport(
-          title:      _titleCtrl.text.trim(),
-          reportType: _selectedType,
-          fileUrl:    _fileUrlCtrl.text.trim(),
-          testDate:   date,
-          notes:      _notesCtrl.text.trim(),
+          imageFile: _selectedImage!,
+          reportType: _reportType,
+          title: _titleController.text.trim(),
+          notes: _notesController.text.trim(),
         );
   }
 
-  void _snack(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(msg)));
-
   @override
   Widget build(BuildContext context) {
-    return BlocListener<LabReportCubit, LabReportState>(
-      listener: (context, state) {
-        if (state is LabReportLoading) {
-          setState(() => _loading = true);
-        } else {
-          setState(() => _loading = false);
-        }
-        if (state is LabReportUploaded) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Report uploaded successfully'),
-              backgroundColor: Color(0xFF16A34A),
-            ),
-          );
-          Navigator.pop(context);
-        }
-        if (state is LabReportError) {
-          _snack(state.message);
-        }
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        appBar: AppBar(
-          title: const Text('Upload Lab Report',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF111827),
-          elevation: 0,
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              AppTextField(
-                controller: _titleCtrl,
-                label: 'Report Title',
-                hint: 'e.g. Complete Blood Count',
+    return Scaffold(
+      appBar: AppBar(title: const Text('Upload Lab Report')),
+      body: BlocListener<LabReportCubit, LabReportState>(
+        listener: (context, state) {
+          if (state is LabReportLoaded) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LabReportResultScreen(report: state.report),
               ),
-              const SizedBox(height: 20),
+            );
+          } else if (state is LabReportError) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.message)));
+          }
+        },
+        child: BlocBuilder<LabReportCubit, LabReportState>(
+          builder: (context, state) {
+            final bool isBusy =
+                state is LabReportUploading || state is LabReportAnalyzing;
 
-              // Type chips
-              const Text('Report Type',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151))),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _types.map((type) {
-                  final selected = _selectedType == type;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedType = type),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image picker area
+                  GestureDetector(
+                    onTap: isBusy ? null : _showImagePicker,
+                    child: Container(
+                      height: 200,
+                      width: double.infinity,
                       decoration: BoxDecoration(
-                        color: selected
-                            ? const Color(0xFF2563EB)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: selected
-                              ? const Color(0xFF2563EB)
-                              : Colors.grey.shade300,
-                        ),
+                        color: Colors.grey.shade100,
+                        border: Border.all(color: Colors.blue.shade200, width: 2),
+                        borderRadius: BorderRadius.circular(16),
                       ),
+                      child: _selectedImage != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.upload_file,
+                                    size: 54, color: Colors.blue.shade300),
+                                const SizedBox(height: 10),
+                                Text('Tap to upload lab report image',
+                                    style: TextStyle(color: Colors.grey.shade600)),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Report type
+                  const Text('Report Type',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _reportType,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                    ),
+                    items: _reportTypes.map((t) => DropdownMenuItem(
+                          value: t['value'],
+                          child: Text(t['label']!),
+                        )).toList(),
+                    onChanged: isBusy
+                        ? null
+                        : (v) => setState(() => _reportType = v!),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Title (optional)
+                  TextField(
+                    controller: _titleController,
+                    enabled: !isBusy,
+                    decoration: InputDecoration(
+                      labelText: 'Title (optional)',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Notes (optional)
+                  TextField(
+                    controller: _notesController,
+                    enabled: !isBusy,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Notes (optional)',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Loading / button
+                  if (isBusy) ...[
+                    const Center(child: CircularProgressIndicator()),
+                    const SizedBox(height: 12),
+                    Center(
                       child: Text(
-                        type,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: selected
-                              ? Colors.white
-                              : const Color(0xFF374151),
+                        state is LabReportUploading
+                            ? 'Uploading...'
+                            : '🔬 AI is analyzing your report...',
+                        style: const TextStyle(fontSize: 15),
+                      ),
+                    ),
+                  ] else
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _upload,
+                        icon: const Icon(Icons.biotech),
+                        label: const Text('Analyze Report',
+                            style: TextStyle(fontSize: 16)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade700,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
-                  );
-                }).toList(),
+                ],
               ),
-              const SizedBox(height: 20),
-
-              // File URL
-              AppTextField(
-                controller: _fileUrlCtrl,
-                label: 'File URL',
-                hint: 'https://  (paste link to uploaded report)',
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: 20),
-
-              // Date picker
-              const Text('Test Date',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151))),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _pickDate,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.calendar_today_outlined,
-                        size: 18, color: Color(0xFF6B7280)),
-                    const SizedBox(width: 10),
-                    Text(
-                      '${_testDate.day}/${_testDate.month}/${_testDate.year}',
-                      style: const TextStyle(
-                          fontSize: 15, color: Color(0xFF374151)),
-                    ),
-                    const Spacer(),
-                    Icon(Icons.edit_outlined,
-                        size: 16, color: Colors.grey.shade400),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Notes
-              AppTextField(
-                controller: _notesCtrl,
-                label: 'Notes (optional)',
-                hint: 'Any additional notes...',
-                maxLines: 3,
-              ),
-              const SizedBox(height: 32),
-
-              // Submit
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5))
-                      : const Text('Upload Report',
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

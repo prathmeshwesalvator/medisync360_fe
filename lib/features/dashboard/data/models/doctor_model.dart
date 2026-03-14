@@ -1,33 +1,66 @@
+// ── DoctorSlotModel ──────────────────────────────────────────────────────────
+// FIX: Backend /api/doctors/<id>/slots/ returns a flat list of TimeSlot objects:
+//   { id, date, start_time, end_time, status }
+// The old model expected { id, day, day_display, start_time, end_time, max_patients, is_active }
+// which is the WeeklySchedule shape — wrong model was used.
 class DoctorSlotModel {
   final int id;
-  final int day;
-  final String dayDisplay;
+  final String date;
   final String startTime;
   final String endTime;
-  final int maxPatients;
-  final bool isActive;
+  final String status; // "available" | "booked" | "blocked"
 
   const DoctorSlotModel({
     required this.id,
-    required this.day,
-    required this.dayDisplay,
+    required this.date,
     required this.startTime,
     required this.endTime,
-    required this.maxPatients,
-    required this.isActive,
+    required this.status,
   });
 
   factory DoctorSlotModel.fromJson(Map<String, dynamic> j) => DoctorSlotModel(
         id: j['id'] ?? 0,
-        day: j['day'] ?? 0,
-        dayDisplay: j['day_display'] ?? '',
+        date: j['date'] ?? '',
         startTime: j['start_time'] ?? '',
         endTime: j['end_time'] ?? '',
-        maxPatients: j['max_patients'] ?? 1,
-        isActive: j['is_active'] ?? true,
+        status: j['status'] ?? 'available',
       );
+
+  bool get isAvailable => status == 'available';
 }
 
+// ── AvailableSlotsModel ───────────────────────────────────────────────────────
+// FIX: Backend returns a plain list [] inside data, not a structured object.
+// We build this wrapper in the repository so the UI contract stays the same.
+class AvailableSlotsModel {
+  final String date;
+  final List<DoctorSlotModel> slots;
+  final bool isOnLeave;
+
+  const AvailableSlotsModel({
+    required this.date,
+    required this.slots,
+    this.isOnLeave = false,
+  });
+
+  /// Build from the raw list returned by GET /api/doctors/<id>/slots/?date=...
+  factory AvailableSlotsModel.fromList(String date, List<dynamic> list) {
+    final slots = list.map((s) => DoctorSlotModel.fromJson(s)).toList();
+    return AvailableSlotsModel(
+      date: date,
+      slots: slots,
+      isOnLeave: false,
+    );
+  }
+
+  /// Convenience: only the booked start times (for greying out in UI)
+  List<String> get bookedTimes => slots
+      .where((s) => s.status == 'booked')
+      .map((s) => s.startTime)
+      .toList();
+}
+
+// ── DoctorReviewModel ─────────────────────────────────────────────────────────
 class DoctorReviewModel {
   final int id;
   final String patientName;
@@ -52,6 +85,10 @@ class DoctorReviewModel {
       );
 }
 
+// ── DoctorModel ───────────────────────────────────────────────────────────────
+// FIX: Backend DoctorDetailSerializer returns 'rating' not 'average_rating',
+//      'is_available_today' not 'is_available', and has no 'city'/'state' —
+//      those come from the linked hospital. Safe defaults added.
 class DoctorModel {
   final int id;
   final String fullName;
@@ -61,13 +98,10 @@ class DoctorModel {
   final double consultationFee;
   final double averageRating;
   final int totalReviews;
-  final String city;
-  final String state;
   final bool isAvailable;
   final String profileImage;
   final String? hospitalName;
   final String bio;
-  final List<DoctorSlotModel> slots;
   final List<DoctorReviewModel> reviews;
 
   const DoctorModel({
@@ -79,56 +113,30 @@ class DoctorModel {
     required this.consultationFee,
     required this.averageRating,
     required this.totalReviews,
-    required this.city,
-    required this.state,
     required this.isAvailable,
     this.profileImage = '',
     this.hospitalName,
     this.bio = '',
-    this.slots = const [],
     this.reviews = const [],
   });
 
   factory DoctorModel.fromJson(Map<String, dynamic> j) => DoctorModel(
         id: j['id'] ?? 0,
         fullName: j['full_name'] ?? '',
-        specialization: j['specialization'] ?? '',
+        specialization: j['specialization_label'] ?? j['specialization'] ?? '',
         qualification: j['qualification'] ?? '',
         experienceYears: j['experience_years'] ?? 0,
         consultationFee: double.tryParse('${j['consultation_fee']}') ?? 0,
-        averageRating: double.tryParse('${j['average_rating']}') ?? 0,
+        // FIX: backend field is 'rating', not 'average_rating'
+        averageRating: double.tryParse('${j['rating']}') ?? 0,
         totalReviews: j['total_reviews'] ?? 0,
-        city: j['city'] ?? '',
-        state: j['state'] ?? '',
-        isAvailable: j['is_available'] ?? true,
+        // FIX: backend field is 'is_available_today', not 'is_available'
+        isAvailable: j['is_available_today'] ?? j['is_available'] ?? true,
         profileImage: j['profile_image'] ?? '',
         hospitalName: j['hospital_name'],
         bio: j['bio'] ?? '',
-        slots: (j['slots'] as List? ?? []).map((s) => DoctorSlotModel.fromJson(s)).toList(),
-        reviews: (j['reviews'] as List? ?? []).map((r) => DoctorReviewModel.fromJson(r)).toList(),
-      );
-}
-
-class AvailableSlotsModel {
-  final String date;
-  final String dayName;
-  final List<DoctorSlotModel> slots;
-  final List<String> bookedTimes;
-  final bool isOnLeave;
-
-  const AvailableSlotsModel({
-    required this.date,
-    required this.dayName,
-    required this.slots,
-    required this.bookedTimes,
-    required this.isOnLeave,
-  });
-
-  factory AvailableSlotsModel.fromJson(Map<String, dynamic> j) => AvailableSlotsModel(
-        date: j['date'] ?? '',
-        dayName: j['day_name'] ?? '',
-        slots: (j['slots'] as List? ?? []).map((s) => DoctorSlotModel.fromJson(s)).toList(),
-        bookedTimes: (j['booked_times'] as List? ?? []).map((t) => t.toString()).toList(),
-        isOnLeave: j['is_on_leave'] ?? false,
+        reviews: (j['reviews'] as List? ?? [])
+            .map((r) => DoctorReviewModel.fromJson(r))
+            .toList(),
       );
 }

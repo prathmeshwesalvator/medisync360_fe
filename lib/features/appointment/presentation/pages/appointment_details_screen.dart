@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:medisync_app/features/appointment/data/models/appointment_model.dart';
 import 'package:medisync_app/features/appointment/presentation/bloc/appointment_cubit.dart';
+import 'package:medisync_app/features/dashboard/data/models/doctor_model.dart';
+import 'package:medisync_app/features/dashboard/presentation/bloc/doctor_cubit.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
 
 
@@ -73,53 +75,169 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   // ── Reschedule bottom sheet ───────────────────────────────────────────────
+  // FIX: old implementation only picked a date and passed slotTime back
+  // (using the same time from the old appointment). Backend requires a slot_id.
+  // New implementation: pick a date → load slots → pick a slot → reschedule.
   void _showReschedule() {
     DateTime picked = DateTime.now().add(const Duration(days: 1));
+    DoctorSlotModel? selectedSlot;
+    AvailableSlotsModel? slotsData;
+    bool loadingSlots = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('Reschedule', style: AppTextStyles.headlineMedium),
-            const SizedBox(height: 16),
-            ListTile(
-              tileColor: AppColors.inputFill,
-              shape: const RoundedRectangleBorder(borderRadius: AppRadius.md),
-              leading: const Icon(Icons.calendar_today_rounded,
-                  color: AppColors.primary),
-              title: Text(
-                '${picked.day}/${picked.month}/${picked.year}',
-                style: AppTextStyles.bodyLarge,
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<DoctorCubit>(),
+        child: StatefulBuilder(
+          builder: (ctx, setModal) {
+            void loadSlots(DateTime date) {
+              final doctorId = _appt.id; // We need doctor id — read from DoctorCubit
+              // Extract doctor ID from the appointment via the cubit if possible;
+              // alternatively navigate to book screen. For detail screen we use the
+              // DoctorCubit already in tree which has the doctor loaded.
+              final dcState = context.read<DoctorCubit>().state;
+              int? doctorId2;
+              if (dcState is DoctorDetailLoaded) {
+                doctorId2 = dcState.doctor.id;
+              } else if (dcState is DoctorSlotsLoaded) {
+                // Already have slots — re-fetch with new date via cubit
+              }
+              // Fallback: use cubit to load slots; listen below
+              setModal(() {
+                loadingSlots = true;
+                selectedSlot = null;
+                slotsData = null;
+              });
+              final dateStr =
+                  '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+              if (doctorId2 != null) {
+                context.read<DoctorCubit>().loadSlots(doctorId2, dateStr);
+              }
+            }
+
+            return BlocListener<DoctorCubit, DoctorState>(
+              listener: (context, state) {
+                if (state is DoctorSlotsLoaded) {
+                  setModal(() {
+                    slotsData = state.slots;
+                    loadingSlots = false;
+                  });
+                }
+                if (state is DoctorSlotsLoading) {
+                  setModal(() => loadingSlots = true);
+                }
+                if (state is DoctorError) {
+                  setModal(() => loadingSlots = false);
+                }
+              },
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                    20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('Reschedule Appointment',
+                      style: AppTextStyles.headlineMedium),
+                  const SizedBox(height: 16),
+
+                  // Date picker
+                  ListTile(
+                    tileColor: AppColors.inputFill,
+                    shape: const RoundedRectangleBorder(
+                        borderRadius: AppRadius.md),
+                    leading: const Icon(Icons.calendar_today_rounded,
+                        color: AppColors.primary),
+                    title: Text(
+                      '${picked.day}/${picked.month}/${picked.year}',
+                      style: AppTextStyles.bodyLarge,
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: picked,
+                        firstDate: DateTime.now().add(const Duration(days: 1)),
+                        lastDate: DateTime.now().add(const Duration(days: 60)),
+                      );
+                      if (d != null) {
+                        setModal(() => picked = d);
+                        loadSlots(d);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Slot grid
+                  if (loadingSlots)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.primary),
+                    )
+                  else if (slotsData == null)
+                    const Text('Pick a date to see available slots',
+                        style: AppTextStyles.bodyMedium)
+                  else if (slotsData!.slots.isEmpty)
+                    const Text('No slots available on this day',
+                        style: AppTextStyles.bodyMedium)
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: slotsData!.slots.map((s) {
+                        final available = s.isAvailable;
+                        final sel = selectedSlot?.id == s.id;
+                        return GestureDetector(
+                          onTap: available
+                              ? () => setModal(() => selectedSlot = s)
+                              : null,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: !available
+                                  ? AppColors.inputFill
+                                  : sel
+                                      ? AppColors.primary
+                                      : AppColors.surface,
+                              border: Border.all(
+                                color: sel
+                                    ? AppColors.primary
+                                    : AppColors.divider,
+                              ),
+                              borderRadius: AppRadius.md,
+                            ),
+                            child: Text(s.startTime,
+                                style: AppTextStyles.labelLarge.copyWith(
+                                  color: !available
+                                      ? AppColors.textHint
+                                      : sel
+                                          ? Colors.white
+                                          : AppColors.textPrimary,
+                                )),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  const SizedBox(height: 16),
+
+                  ElevatedButton(
+                    // FIX: pass selectedSlot.id (int) to reschedule cubit
+                    onPressed: selectedSlot == null
+                        ? null
+                        : () {
+                            Navigator.pop(ctx);
+                            context
+                                .read<AppointmentCubit>()
+                                .reschedule(_appt.id, selectedSlot!.id);
+                          },
+                    child: const Text('Confirm Reschedule'),
+                  ),
+                ]),
               ),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () async {
-                final d = await showDatePicker(
-                  context: ctx,
-                  initialDate: picked,
-                  firstDate: DateTime.now().add(const Duration(days: 1)),
-                  lastDate: DateTime.now().add(const Duration(days: 60)),
-                );
-                if (d != null) setModal(() => picked = d);
-              },
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                final ds =
-                    '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-                context
-                    .read<AppointmentCubit>()
-                    .reschedule(_appt.id, ds, _appt.slotTime);
-              },
-              child: const Text('Confirm Reschedule'),
-            ),
-          ]),
+            );
+          },
         ),
       ),
     );
@@ -130,17 +248,23 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     return BlocListener<AppointmentCubit, AppointmentState>(
       listener: (context, state) {
         if (state is AppointmentActionSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(state.message),
-            backgroundColor: AppColors.accent,
-          ));
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              content: Text('✓ ${state.message}'),
+              backgroundColor: AppColors.accent,
+              behavior: SnackBarBehavior.floating,
+            ));
           setState(() => _appt = state.appointment);
         }
         if (state is AppointmentError) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(state.message),
-            backgroundColor: AppColors.error,
-          ));
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ));
         }
       },
       child: Scaffold(
@@ -156,7 +280,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           padding: const EdgeInsets.all(AppSpacing.md),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Status banner
             _StatusBanner(status: _appt.status),
             const SizedBox(height: AppSpacing.md),
 
@@ -205,17 +328,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                     icon: Icons.access_time_rounded,
                     label: 'Time',
                     value: _appt.slotTime),
-                const Divider(height: 16),
-                _DetailRow(
-                  icon: _appt.appointmentType == AppointmentType.video
-                      ? Icons.videocam_rounded
-                      : _appt.appointmentType == AppointmentType.phone
-                          ? Icons.phone_rounded
-                          : Icons.person_rounded,
-                  label: 'Type',
-                  value:
-                      _appt.appointmentType.replaceAll('_', ' ').toUpperCase(),
-                ),
                 if (_appt.hospitalName != null) ...[
                   const Divider(height: 16),
                   _DetailRow(
@@ -228,33 +340,20 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             const SizedBox(height: AppSpacing.sm),
 
             // Visit info
-            if (_appt.reason.isNotEmpty || _appt.symptoms.isNotEmpty)
+            if (_appt.reason.isNotEmpty)
               _Card(
                 title: 'Visit Info',
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_appt.reason.isNotEmpty) ...[
-                        Text('Reason',
-                            style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        Text(_appt.reason,
-                            style:
-                                AppTextStyles.bodyMedium.copyWith(height: 1.5)),
-                      ],
-                      if (_appt.symptoms.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Text('Symptoms',
-                            style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        Text(_appt.symptoms,
-                            style:
-                                AppTextStyles.bodyMedium.copyWith(height: 1.5)),
-                      ],
+                      Text('Reason',
+                          style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(_appt.reason,
+                          style: AppTextStyles.bodyMedium
+                              .copyWith(height: 1.5)),
                     ]),
               ),
 
@@ -265,6 +364,17 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 title: "Doctor's Notes",
                 child: Text(_appt.notes,
                     style: AppTextStyles.bodyMedium.copyWith(height: 1.6)),
+              ),
+            ],
+
+            // Cancel reason
+            if (_appt.cancelReason.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _Card(
+                title: 'Cancellation Reason',
+                child: Text(_appt.cancelReason,
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(color: AppColors.error, height: 1.5)),
               ),
             ],
 
@@ -299,14 +409,15 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                   ]),
             ),
 
-            // Status history
+            // Status logs
             if (_appt.statusLogs.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               _Card(
                 title: 'History',
                 child: Column(
-                  children:
-                      _appt.statusLogs.map((l) => _LogTile(log: l)).toList(),
+                  children: _appt.statusLogs
+                      .map((l) => _LogTile(log: l))
+                      .toList(),
                 ),
               ),
             ],

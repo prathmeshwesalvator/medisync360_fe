@@ -16,28 +16,29 @@ class BookAppointmentScreen extends StatefulWidget {
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   DoctorSlotModel? _selectedSlot;
-  String _type = 'in_person';
   final _reasonCtrl = TextEditingController();
-  final _symptomsCtrl = TextEditingController();
   AvailableSlotsModel? _slotsData;
   bool _loadingSlots = false;
-
-  static const _types = [
-    ('in_person', 'In Person', Icons.person_rounded),
-    ('video', 'Video Call', Icons.videocam_rounded),
-    ('phone', 'Phone Call', Icons.phone_rounded),
-  ];
 
   @override
   void initState() {
     super.initState();
-    _loadSlots();
+    // FIX: check if slots are already loaded in cubit state before firing a
+    // new request. BlocListener won't re-fire for the same state, so if we
+    // just call loadSlots() and the cubit is already DoctorSlotsLoaded, the
+    // listener never triggers and _loadingSlots stays true forever.
+    final current = context.read<DoctorCubit>().state;
+    if (current is DoctorSlotsLoaded) {
+      _slotsData = current.slots;
+      _loadingSlots = false;
+    } else {
+      _triggerLoadSlots();
+    }
   }
 
   @override
   void dispose() {
     _reasonCtrl.dispose();
-    _symptomsCtrl.dispose();
     super.dispose();
   }
 
@@ -46,24 +47,25 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   String _displayDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
-  void _loadSlots() {
+  // Separate the cubit call so date changes can reuse it cleanly
+  void _triggerLoadSlots() {
     setState(() {
       _loadingSlots = true;
       _selectedSlot = null;
+      _slotsData = null;
     });
-    context
-        .read<DoctorCubit>()
-        .loadSlots(widget.doctor.id, _dateStr(_selectedDate));
+    context.read<DoctorCubit>().loadSlots(
+          widget.doctor.id,
+          _dateStr(_selectedDate),
+        );
   }
 
   void _confirm() {
+    if (_selectedSlot == null) return;
     context.read<AppointmentCubit>().book(
           doctorId: widget.doctor.id,
-          date: _dateStr(_selectedDate),
-          slotTime: _selectedSlot!.startTime,
-          type: _type,
+          slotId: _selectedSlot!.id,
           reason: _reasonCtrl.text.trim(),
-          symptoms: _symptomsCtrl.text.trim(),
         );
   }
 
@@ -83,30 +85,36 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           BlocListener<AppointmentCubit, AppointmentState>(
             listener: (context, state) {
               if (state is AppointmentBooked) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Appointment booked successfully! ✓'),
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(const SnackBar(
+                    content: Text('✓ Appointment booked successfully!'),
                     backgroundColor: AppColors.accent,
-                  ),
-                );
-                // Pop back to appointments list
+                    behavior: SnackBarBehavior.floating,
+                  ));
                 Navigator.of(context)
-                  ..pop() // book screen
-                  ..pop(); // doctor detail
+                  ..pop()
+                  ..pop();
               }
               if (state is AppointmentError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(SnackBar(
                     content: Text(state.message),
                     backgroundColor: AppColors.error,
-                  ),
-                );
+                    behavior: SnackBarBehavior.floating,
+                  ));
               }
             },
           ),
           BlocListener<DoctorCubit, DoctorState>(
             listener: (context, state) {
+              if (state is DoctorSlotsLoading) {
+                setState(() => _loadingSlots = true);
+              }
               if (state is DoctorSlotsLoaded) {
+                // FIX: always update _slotsData here, whether it's the first
+                // load or a date-change reload
                 setState(() {
                   _slotsData = state.slots;
                   _loadingSlots = false;
@@ -120,9 +128,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         ],
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.md),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // ── Doctor summary card ─────────────────────────────────────
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+            // ── Doctor summary card ───────────────────────────────────
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
@@ -136,7 +145,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   radius: 24,
                   backgroundColor: AppColors.doctorRole.withOpacity(0.15),
                   child: Text(
-                    widget.doctor.fullName[0].toUpperCase(),
+                    widget.doctor.fullName.isNotEmpty
+                        ? widget.doctor.fullName[0].toUpperCase()
+                        : 'D',
                     style: AppTextStyles.titleLarge
                         .copyWith(color: AppColors.doctorRole),
                   ),
@@ -161,7 +172,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Date picker ─────────────────────────────────────────────
+            // ── Date picker ───────────────────────────────────────────
             const _Label('Select Date'),
             const SizedBox(height: AppSpacing.xs),
             GestureDetector(
@@ -174,7 +185,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 );
                 if (d != null) {
                   setState(() => _selectedDate = d);
-                  _loadSlots();
+                  _triggerLoadSlots();
                 }
               },
               child: Container(
@@ -199,7 +210,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Slot picker ─────────────────────────────────────────────
+            // ── Slot picker ───────────────────────────────────────────
             const _Label('Select Time Slot'),
             const SizedBox(height: AppSpacing.xs),
             if (_loadingSlots)
@@ -209,42 +220,40 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: AppColors.primary)),
               )
-            else if (_slotsData == null)
-              const _NoSlots(message: 'No slots available')
-            else if (_slotsData!.isOnLeave)
-              const _NoSlots(message: 'Doctor is on leave this day')
-            else if (_slotsData!.slots.isEmpty)
+            else if (_slotsData == null || _slotsData!.slots.isEmpty)
               const _NoSlots(message: 'No available slots for this day')
             else
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _slotsData!.slots.map((s) {
-                  final booked = _slotsData!.bookedTimes.contains(s.startTime);
+                  final isAvailable = s.isAvailable;
                   final selected = _selectedSlot?.id == s.id;
                   return GestureDetector(
-                    onTap:
-                        booked ? null : () => setState(() => _selectedSlot = s),
+                    onTap: isAvailable
+                        ? () => setState(() => _selectedSlot = s)
+                        : null,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: booked
+                        color: !isAvailable
                             ? AppColors.inputFill
                             : selected
                                 ? AppColors.primary
                                 : AppColors.surface,
                         border: Border.all(
-                          color:
-                              selected ? AppColors.primary : AppColors.divider,
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.divider,
                         ),
                         borderRadius: AppRadius.md,
                       ),
                       child: Text(
                         s.startTime,
                         style: AppTextStyles.labelLarge.copyWith(
-                          color: booked
+                          color: !isAvailable
                               ? AppColors.textHint
                               : selected
                                   ? Colors.white
@@ -257,55 +266,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Consultation type ───────────────────────────────────────
-            const _Label('Consultation Type'),
-            const SizedBox(height: AppSpacing.xs),
-            Row(
-              children: _types.map((t) {
-                final selected = _type == t.$1;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _type = t.$1),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppColors.primary.withOpacity(0.1)
-                            : AppColors.surface,
-                        border: Border.all(
-                          color:
-                              selected ? AppColors.primary : AppColors.divider,
-                        ),
-                        borderRadius: AppRadius.md,
-                      ),
-                      child: Column(children: [
-                        Icon(t.$3,
-                            size: 20,
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.textHint),
-                        const SizedBox(height: 4),
-                        Text(
-                          t.$2,
-                          style: AppTextStyles.caption.copyWith(
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.textSecondary,
-                            fontWeight:
-                                selected ? FontWeight.w700 : FontWeight.w400,
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // ── Reason ──────────────────────────────────────────────────
+            // ── Reason ────────────────────────────────────────────────
             const _Label('Reason for Visit'),
             const SizedBox(height: AppSpacing.xs),
             TextField(
@@ -314,19 +275,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               decoration: const InputDecoration(
                   hintText: 'Brief reason (e.g. fever, checkup)'),
             ),
-            const SizedBox(height: AppSpacing.md),
-
-            const _Label('Symptoms'),
-            const SizedBox(height: AppSpacing.xs),
-            TextField(
-              controller: _symptomsCtrl,
-              maxLines: 3,
-              decoration:
-                  const InputDecoration(hintText: 'Describe your symptoms…'),
-            ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Payment note ────────────────────────────────────────────
+            // ── Payment note ──────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
@@ -341,24 +292,26 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   child: Text(
                     'Payment of ₹${widget.doctor.consultationFee.toStringAsFixed(0)} '
                     'will be collected at the time of consultation.',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.warning),
+                    style:
+                        AppTextStyles.caption.copyWith(color: AppColors.warning),
                   ),
                 ),
               ]),
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Confirm button ──────────────────────────────────────────
+            // ── Confirm button ────────────────────────────────────────
             BlocBuilder<AppointmentCubit, AppointmentState>(
               builder: (context, state) {
                 final loading = state is AppointmentLoading;
+                // FIX: button is enabled as soon as a slot is selected,
+                // regardless of reason field (reason is optional)
+                final canBook = !loading && _selectedSlot != null;
                 return SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed:
-                        loading || _selectedSlot == null ? null : _confirm,
+                    onPressed: canBook ? _confirm : null,
                     child: loading
                         ? const SizedBox(
                             height: 20,
@@ -366,9 +319,13 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text('Confirm Booking',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600)),
+                        : Text(
+                            _selectedSlot == null
+                                ? 'Select a time slot'
+                                : 'Confirm Booking',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
                   ),
                 );
               },
@@ -405,8 +362,11 @@ class _NoSlots extends StatelessWidget {
           const Icon(Icons.event_busy_rounded,
               color: AppColors.error, size: 18),
           const SizedBox(width: 8),
-          Text(message,
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error)),
+          Expanded(
+            child: Text(message,
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.error)),
+          ),
         ]),
       );
 }

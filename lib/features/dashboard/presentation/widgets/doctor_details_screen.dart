@@ -27,7 +27,12 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<DoctorCubit, DoctorState>(
       builder: (context, state) {
-        if (state is DoctorLoading) return const Scaffold(body: LoadingWidget());
+        // FIX: DoctorSlotsLoading must NOT show a full-screen loader here —
+        // it would wipe the detail view while the book screen loads slots.
+        // Only DoctorLoading (initial full load) shows the loader.
+        if (state is DoctorLoading) {
+          return const Scaffold(body: LoadingWidget());
+        }
 
         if (state is DoctorError) {
           return Scaffold(
@@ -42,8 +47,18 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
           );
         }
 
-        if (state is DoctorDetailLoaded) {
-          final d = state.doctor;
+        // FIX: also keep rendering detail when slots are loading or loaded
+        if (state is DoctorDetailLoaded ||
+            state is DoctorSlotsLoading ||
+            state is DoctorSlotsLoaded ||
+            state is DoctorReviewSubmitted) {
+          // Grab the doctor from whichever state carries it
+          final d = state is DoctorDetailLoaded
+              ? (state as DoctorDetailLoaded).doctor
+              : context.read<DoctorCubit>().lastDoctor;
+
+          if (d == null) return const SizedBox.shrink();
+
           return Scaffold(
             body: CustomScrollView(
               slivers: [
@@ -115,8 +130,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
                         Row(children: [
                           _StatPill(
                               icon: Icons.star_rounded,
-                              value:
-                                  d.averageRating.toStringAsFixed(1),
+                              value: d.averageRating.toStringAsFixed(1),
                               label: 'Rating',
                               color: Colors.amber),
                           const SizedBox(width: 10),
@@ -141,8 +155,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
                               color: AppColors.primaryLight,
                               borderRadius: AppRadius.md),
                           child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text('Consultation Fee',
                                   style: AppTextStyles.bodyMedium),
@@ -164,64 +177,30 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
                               ? d.bio
                               : '${d.qualification}  ·  '
                                   '${d.experienceYears} years of experience',
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(height: 1.6),
+                          style:
+                              AppTextStyles.bodyMedium.copyWith(height: 1.6),
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        // Location
-                        if (d.city.isNotEmpty) ...[
-                          const _SectionTitle('Location'),
+                        // FIX: removed d.city / d.state — those fields no longer exist
+                        // on DoctorModel (backend DoctorProfile has no city/state).
+                        // Show hospital name if present instead.
+                        if (d.hospitalName != null) ...[
+                          const _SectionTitle('Hospital'),
                           const SizedBox(height: 8),
                           Row(children: [
-                            const Icon(Icons.location_on_rounded,
-                                size: 16, color: AppColors.primary),
+                            const Icon(Icons.local_hospital_outlined,
+                                size: 16, color: AppColors.hospitalRole),
                             const SizedBox(width: 6),
-                            Text('${d.city}, ${d.state}',
+                            Text(d.hospitalName!,
                                 style: AppTextStyles.bodyMedium),
                           ]),
-                          if (d.hospitalName != null) ...[
-                            const SizedBox(height: 4),
-                            Row(children: [
-                              const Icon(
-                                  Icons.local_hospital_outlined,
-                                  size: 16,
-                                  color: AppColors.hospitalRole),
-                              const SizedBox(width: 6),
-                              Text(d.hospitalName!,
-                                  style: AppTextStyles.bodyMedium),
-                            ]),
-                          ],
                           const SizedBox(height: AppSpacing.md),
                         ],
 
-                        // Availability schedule
-                        if (d.slots.isNotEmpty) ...[
-                          const _SectionTitle('Availability'),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: d.slots
-                                .map((s) => Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6),
-                                      decoration: const BoxDecoration(
-                                          color: AppColors.inputFill,
-                                          borderRadius: AppRadius.md),
-                                      child: Text(
-                                          '${s.dayDisplay}  ${s.startTime}',
-                                          style: AppTextStyles.caption
-                                              .copyWith(
-                                                  fontWeight:
-                                                      FontWeight.w600)),
-                                    ))
-                                .toList(),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                        ],
+                        // FIX: removed Availability section that used d.slots
+                        // (old DoctorSlotModel had dayDisplay which no longer exists).
+                        // Slots are now loaded on-demand in BookAppointmentScreen.
 
                         // Reviews
                         if (d.reviews.isNotEmpty) ...[
@@ -235,28 +214,28 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
 
                         // Book button
                         if (d.isAvailable)
-                          ElevatedButton.icon(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MultiBlocProvider(
-                                  providers: [
-                                    BlocProvider.value(
-                                        value: context
-                                            .read<DoctorCubit>()),
-                                    BlocProvider.value(
-                                        value: context
-                                            .read<AppointmentCubit>()),
-                                  ],
-                                  child: BookAppointmentScreen(
-                                      doctor: d),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MultiBlocProvider(
+                                    providers: [
+                                      BlocProvider.value(
+                                          value: context.read<DoctorCubit>()),
+                                      BlocProvider.value(
+                                          value:
+                                              context.read<AppointmentCubit>()),
+                                    ],
+                                    child: BookAppointmentScreen(doctor: d),
+                                  ),
                                 ),
                               ),
+                              icon: const Icon(Icons.calendar_today_rounded,
+                                  size: 18),
+                              label: const Text('Book Appointment'),
                             ),
-                            icon: const Icon(
-                                Icons.calendar_today_rounded,
-                                size: 18),
-                            label: const Text('Book Appointment'),
                           ),
                         const SizedBox(height: AppSpacing.xl),
                       ],
@@ -291,8 +270,7 @@ class _AvailBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: available
               ? AppColors.accent.withOpacity(0.1)
@@ -324,14 +302,12 @@ class _StatPill extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-              color: color.withOpacity(0.08),
-              borderRadius: AppRadius.md),
+              color: color.withOpacity(0.08), borderRadius: AppRadius.md),
           child: Column(children: [
             Icon(icon, size: 18, color: color),
             const SizedBox(height: 2),
             Text(value,
-                style:
-                    AppTextStyles.labelLarge.copyWith(color: color)),
+                style: AppTextStyles.labelLarge.copyWith(color: color)),
             Text(label, style: AppTextStyles.caption),
           ]),
         ),
@@ -348,31 +324,28 @@ class _ReviewTile extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: const BoxDecoration(
             color: AppColors.inputFill, borderRadius: AppRadius.md),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Text(review.patientName,
-                    style: AppTextStyles.labelLarge
-                        .copyWith(fontSize: 13)),
-                const Spacer(),
-                Row(
-                  children: List.generate(
-                    5,
-                    (i) => Icon(
-                      i < review.rating
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      size: 14,
-                      color: Colors.amber,
-                    ),
-                  ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text(review.patientName,
+                style: AppTextStyles.labelLarge.copyWith(fontSize: 13)),
+            const Spacer(),
+            Row(
+              children: List.generate(
+                5,
+                (i) => Icon(
+                  i < review.rating
+                      ? Icons.star_rounded
+                      : Icons.star_outline_rounded,
+                  size: 14,
+                  color: Colors.amber,
                 ),
-              ]),
-              if (review.comment.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(review.comment, style: AppTextStyles.caption),
-              ],
-            ]),
+              ),
+            ),
+          ]),
+          if (review.comment.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(review.comment, style: AppTextStyles.caption),
+          ],
+        ]),
       );
 }

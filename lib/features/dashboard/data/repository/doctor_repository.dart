@@ -37,14 +37,15 @@ class DoctorRepository {
       if (availableOnly) 'available_only': 'true',
     });
     final r = _parse(await _client.get(uri, headers: _open));
-    return (r['data']['results'] as List)
-        .map((d) => DoctorModel.fromJson(d))
-        .toList();
+    final data = r['data'];
+    // Backend wraps list in {count, results}
+    final list = data is Map ? (data['results'] as List? ?? []) : (data as List? ?? []);
+    return list.map((d) => DoctorModel.fromJson(d)).toList();
   }
 
   Future<DoctorModel> getDoctorDetail(int id) async {
-    final r =
-        _parse(await _client.get(Uri.parse('$_base$id/'), headers: _open));
+    final r = _parse(
+        await _client.get(Uri.parse('$_base$id/'), headers: _open));
     return DoctorModel.fromJson(r['data']);
   }
 
@@ -53,7 +54,20 @@ class DoctorRepository {
     final uri = Uri.parse('$_base$doctorId/slots/')
         .replace(queryParameters: {'date': date});
     final r = _parse(await _client.get(uri, headers: _open));
-    return AvailableSlotsModel.fromJson(r['data']);
+
+    // FIX: Backend returns a flat list of TimeSlot objects inside data[],
+    // NOT a structured object { date, slots, booked_times, is_on_leave }.
+    // Build AvailableSlotsModel from the list using the named constructor.
+    final data = r['data'];
+    if (data is List) {
+      return AvailableSlotsModel.fromList(date, data);
+    }
+    // Fallback: if backend ever wraps it, handle gracefully
+    if (data is Map) {
+      final list = data['results'] ?? data['slots'] ?? [];
+      return AvailableSlotsModel.fromList(date, list as List);
+    }
+    return AvailableSlotsModel.fromList(date, []);
   }
 
   Future<void> submitReview(

@@ -33,8 +33,6 @@ class AuthRepository {
         'Authorization': 'Bearer $token',
       };
 
-  // ─── Helper ────────────────────────────────────────────────────────────────
-
   Map<String, dynamic> _parseResponse(http.Response response) {
     final Map<String, dynamic> body = jsonDecode(response.body);
     if (body['success'] == true) return body;
@@ -125,8 +123,10 @@ class AuthRepository {
     required String password,
     required String confirmPassword,
     required HospitalProfile hospitalProfile,
-    required double latitude,
-    required double longitude,
+    // ── BUG FIX: changed from required double to double? (nullable)
+    // Only include in JSON body if non-null — backend field is optional
+    double? latitude,
+    double? longitude,
   }) async {
     final response = await _client.post(
       Uri.parse(AppConstants.registerHospitalEndpoint),
@@ -138,8 +138,9 @@ class AuthRepository {
         'password': password,
         'confirm_password': confirmPassword,
         'hospital_profile': hospitalProfile.toJson(),
-        'latitude': latitude,
-        'longitude': longitude,
+        // ── Only include coords if they were actually captured ────────────
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       }),
     );
     final body = _parseResponse(response);

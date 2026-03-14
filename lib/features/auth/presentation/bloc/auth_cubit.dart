@@ -22,10 +22,7 @@ class AuthCubit extends Cubit<AuthState> {
   }) async {
     emit(const AuthLoading());
     try {
-      final result = await _repository.login(
-        email: email,
-        password: password,
-      );
+      final result = await _repository.login(email: email, password: password);
       await _tokenStorage.saveTokens(result.tokens!);
       await _tokenStorage.saveUser(result.user);
       emit(AuthSuccess(
@@ -36,10 +33,9 @@ class AuthCubit extends Cubit<AuthState> {
     } on ApiException catch (e) {
       emit(AuthFailure(e.message, fieldErrors: e.errors));
     } catch (e) {
-      log('error :: $e');
+      log('login error :: $e');
       emit(const AuthFailure(
-        'Unable to connect. Please check your internet connection.',
-      ));
+          'Unable to connect. Please check your internet connection.'));
     }
   }
 
@@ -73,10 +69,8 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthFailure(e.message, fieldErrors: e.errors));
     } catch (e) {
       log(e.toString());
-
       emit(const AuthFailure(
-        'Unable to connect. Please check your internet connection.',
-      ));
+          'Unable to connect. Please check your internet connection.'));
     }
   }
 
@@ -109,14 +103,14 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthFailure(e.message, fieldErrors: e.errors));
     } catch (e) {
       log(e.toString());
-
       emit(const AuthFailure(
-        'Unable to connect. Please check your internet connection.',
-      ));
+          'Unable to connect. Please check your internet connection.'));
     }
   }
 
   // ─── Register Hospital ─────────────────────────────────────────────────────
+  // FIX: was passing `latitude ?? 0.0` which sends 0°N 0°E (ocean) to backend.
+  // Now passes nullable directly — backend omits the field if null.
 
   Future<void> registerHospital({
     required String email,
@@ -125,8 +119,8 @@ class AuthCubit extends Cubit<AuthState> {
     required String password,
     required String confirmPassword,
     required HospitalProfile hospitalProfile,
-    required double latitude,
-    required double longitude,
+    double? latitude,
+    double? longitude,
   }) async {
     emit(const AuthLoading());
     try {
@@ -137,9 +131,9 @@ class AuthCubit extends Cubit<AuthState> {
         password: password,
         confirmPassword: confirmPassword,
         hospitalProfile: hospitalProfile,
+        // FIX: pass nullable, NOT ?? 0.0
         latitude: latitude,
         longitude: longitude,
-
       );
       emit(const AuthPendingApproval(
         message:
@@ -148,14 +142,11 @@ class AuthCubit extends Cubit<AuthState> {
       ));
     } on ApiException catch (e) {
       log(e.toString());
-
       emit(AuthFailure(e.message, fieldErrors: e.errors));
     } catch (e) {
       log(e.toString());
-
       emit(const AuthFailure(
-        'Unable to connect. Please check your internet connection.',
-      ));
+          'Unable to connect. Please check your internet connection.'));
     }
   }
 
@@ -167,15 +158,10 @@ class AuthCubit extends Cubit<AuthState> {
       final access = await _tokenStorage.getAccessToken();
       final refresh = await _tokenStorage.getRefreshToken();
       if (access != null && refresh != null) {
-        await _repository.logout(
-          accessToken: access,
-          refreshToken: refresh,
-        );
+        await _repository.logout(accessToken: access, refreshToken: refresh);
       }
     } catch (e) {
       log(e.toString());
-
-      // Even if API call fails, still clear local tokens
     } finally {
       await _tokenStorage.clearAll();
       emit(const AuthLoggedOut());
@@ -207,32 +193,28 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthFailure(e.message, fieldErrors: e.errors));
     } catch (e) {
       log(e.toString());
-
       emit(const AuthFailure(
-        'Unable to connect. Please check your internet connection.',
-      ));
+          'Unable to connect. Please check your internet connection.'));
     }
   }
 
   // ─── Check Existing Session ────────────────────────────────────────────────
 
-Future<void> checkSession() async {
-  emit(const AuthLoading());
-
-  try {
-    final user = await _tokenStorage.getUser();
-    final token = await _tokenStorage.getAccessToken();
-
-    if (user != null && token != null) {
-      emit(AuthSuccess(user: user, message: 'Session restored'));
-    } else {
+  Future<void> checkSession() async {
+    emit(const AuthLoading());
+    try {
+      final user = await _tokenStorage.getUser();
+      final token = await _tokenStorage.getAccessToken();
+      if (user != null && token != null) {
+        emit(AuthSuccess(user: user, message: 'Session restored'));
+      } else {
+        emit(const AuthUnauthenticated());
+      }
+    } catch (e) {
+      log(e.toString());
       emit(const AuthUnauthenticated());
     }
-  } catch (e) {
-    log(e.toString());
-    emit(const AuthUnauthenticated());
   }
-}
 
   // ─── Reset ─────────────────────────────────────────────────────────────────
 

@@ -11,7 +11,6 @@ import 'package:medisync_app/features/dashboard/presentation/widgets/stats_card.
 import 'package:medisync_app/features/notification/presentation/screens/notification_screen.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
 
-
 class DoctorDashboard extends StatefulWidget {
   const DoctorDashboard({super.key});
 
@@ -24,29 +23,37 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: const [
-          _DoctorHomeTab(),
-          _DoctorAppointmentsTab(),
-          _DoctorProfileTab(),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.doctorRole,
-        unselectedItemColor: AppColors.textHint,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_rounded), label: 'Appointments'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded), label: 'Profile'),
-        ],
+    // FIX: listen for logout at top level — navigation handled here, not in sub-tabs
+    return BlocListener<AuthCubit, AuthState>(
+      listener: (context, state) {
+        if (state is AuthLoggedOut || state is AuthUnauthenticated) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: const [
+            _DoctorHomeTab(),
+            _DoctorAppointmentsTab(),
+            _DoctorProfileTab(),
+          ],
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (i) => setState(() => _currentIndex = i),
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: AppColors.doctorRole,
+          unselectedItemColor: AppColors.textHint,
+          items: const [
+            BottomNavigationBarItem(
+                icon: Icon(Icons.home_rounded), label: 'Home'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.calendar_today_rounded), label: 'Appointments'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person_rounded), label: 'Profile'),
+          ],
+        ),
       ),
     );
   }
@@ -64,7 +71,6 @@ class _DoctorHomeTabState extends State<_DoctorHomeTab> {
   @override
   void initState() {
     super.initState();
-    // Load today's appointments on home tab
     context.read<AppointmentCubit>().loadDoctorAppointments();
   }
 
@@ -139,7 +145,8 @@ class _DoctorHomeTabState extends State<_DoctorHomeTab> {
                     appts.where((a) => a.status == 'completed').length;
 
                 return Column(children: [
-                  const Text("Today's Overview", style: AppTextStyles.headlineMedium),
+                  const Text("Today's Overview",
+                      style: AppTextStyles.headlineMedium),
                   const SizedBox(height: AppSpacing.md),
                   GridView.count(
                     crossAxisCount: 2,
@@ -292,7 +299,32 @@ class _DoctorAppointmentsTabState extends State<_DoctorAppointmentsTab>
               .loadDoctorAppointments(status: _tabs[i].$2, date: _date),
         ),
       ),
-      body: BlocBuilder<AppointmentCubit, AppointmentState>(
+      // FIX: add BlocListener to show toasts for appointment actions (confirm/complete)
+      body: BlocConsumer<AppointmentCubit, AppointmentState>(
+        listener: (context, state) {
+          if (state is AppointmentActionSuccess) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(
+                content: Text('✓ ${state.message}'),
+                backgroundColor: AppColors.accent,
+                behavior: SnackBarBehavior.floating,
+              ));
+            // Reload list after action
+            context
+                .read<AppointmentCubit>()
+                .loadDoctorAppointments(date: _date);
+          }
+          if (state is AppointmentError) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+              ));
+          }
+        },
         builder: (context, state) {
           if (state is AppointmentLoading) return const LoadingWidget();
 
@@ -448,11 +480,9 @@ class _DoctorProfileTab extends StatelessWidget {
             onTap: () {},
           ),
           const SizedBox(height: AppSpacing.md),
+          // FIX: only call logout() — navigation handled by BlocListener in DoctorDashboard
           OutlinedButton.icon(
-            onPressed: () {
-              context.read<AuthCubit>().logout();
-              Navigator.pushReplacementNamed(context, '/login');
-            },
+            onPressed: () => context.read<AuthCubit>().logout(),
             icon: const Icon(Icons.logout_rounded, size: 18),
             label: const Text('Sign out'),
             style: OutlinedButton.styleFrom(

@@ -7,13 +7,13 @@ class AppConstants {
   // Physical device   → your machine IP
 
   // static const String _host = '0.0.0.0';
-  static const String _host = '10.181.178.100';
+  static const String _host = '172.31.233.105';
   static const String _base = 'http://$_host:8000/api';
   // static const String _base = 'https://medisync360-be.onrender.com/api';
   static const String adminBase = 'http://$_host:8000/admin/';
   // static const String adminBase = 'https://medisync360-be.onrender.com/admin/';
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth ─────────────────────────────────────────────────────────────────
   static const String loginEndpoint = '$_base/auth/login/';
   static const String registerUserEndpoint = '$_base/auth/register/user/';
   static const String registerDoctorEndpoint = '$_base/auth/register/doctor/';
@@ -24,40 +24,53 @@ class AppConstants {
   static const String tokenRefreshEndpoint = '$_base/token/refresh/';
   static const String changePasswordEndpoint = '$_base/auth/change-password/';
 
-  // ── Hospitals ───────────────────────────────────────────────────────────────
+  // ── Hospitals ─────────────────────────────────────────────────────────────
   static const String hospitalsEndpoint = '$_base/hospitals/';
   static const String nearbyHospitalsEndpoint = '$_base/hospitals/nearby/';
   static const String hospitalsMapEndpoint = '$_base/hospitals/map/';
   static const String myHospitalEndpoint = '$_base/hospitals/my/';
   static const String myCapacityEndpoint = '$_base/hospitals/my/capacity/';
 
-  // ── Doctors ─────────────────────────────────────────────────────────────────
+  // ── Doctors ───────────────────────────────────────────────────────────────
   static const String doctorsEndpoint = '$_base/doctors/';
   static const String myDoctorProfileEndpoint = '$_base/doctors/my/';
   static const String myScheduleEndpoint = '$_base/doctors/my/schedule/';
   static const String mySlotBlocksEndpoint = '$_base/doctors/my/blocks/';
 
-  // ── Appointments ─────────────────────────────────────────────────────────────
+  // ── Appointments ──────────────────────────────────────────────────────────
   static const String appointmentsEndpoint = '$_base/appointments/';
   static const String myAppointmentsEndpoint = '$_base/appointments/my/';
   static const String doctorAppointmentsEndpoint =
       '$_base/appointments/doctor/mine/';
 
-  // ── EHR ─────────────────────────────────────────────────────────────────────
+  // ── SOS ───────────────────────────────────────────────────────────────────
+  static const String sosEndpoint = '$_base/sos/';
+  static const String mySOSEndpoint = '$_base/sos/my/';
+  static const String sosHospitalActiveEndpoint = '$_base/sos/hospital/active/';
+
+  static String sosDetail(int id) => '$_base/sos/$id/';
+  static String sosCancelEndpoint(int id) => '$_base/sos/$id/cancel/';
+  static String sosRespondEndpoint(int id) => '$_base/sos/$id/respond/';
+  static String sosEnrouteEndpoint(int id) => '$_base/sos/$id/enroute/';
+  static String sosLocationEndpoint(int id) => '$_base/sos/$id/location/';
+  static String sosArrivedEndpoint(int id) => '$_base/sos/$id/arrived/';
+  static String sosResolveEndpoint(int id) => '$_base/sos/$id/resolve/';
+
+  // ── EHR ───────────────────────────────────────────────────────────────────
   static const String myHistoryEndpoint = '$_base/ehr/my/history/';
   static const String myPrescriptionsEndpoint = '$_base/ehr/my/prescriptions/';
   static const String myNotesEndpoint = '$_base/ehr/my/notes/';
   static const String myImagingEndpoint = '$_base/ehr/my/imaging/';
 
-  // ── Lab Reports ──────────────────────────────────────────────────────────────
+  // ── Lab Reports ───────────────────────────────────────────────────────────
   static const String labReportsEndpoint = '$_base/lab-reports/';
 
-  // ── Notifications ────────────────────────────────────────────────────────────
+  // ── Notifications ─────────────────────────────────────────────────────────
   static const String notificationsEndpoint = '$_base/notifications/';
   static const String fcmTokenEndpoint = '$_base/notifications/fcm/';
   static const String markAllReadEndpoint = '$_base/notifications/read/';
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
   static String doctorDetail(int id) => '$_base/doctors/$id/';
   static String doctorSlots(int id) => '$_base/doctors/$id/slots/';
   static String doctorReviews(int id) => '$_base/doctors/$id/reviews/';
@@ -76,4 +89,7 @@ class AppConstants {
   static String labReportDetail(int id) => '$_base/lab-reports/$id/';
   static String patientLabReports(int patientId) =>
       '$_base/lab-reports/patient/$patientId/';
+  static const String labReportsUrl = '$_base/lab-reports';
+
+
 }

@@ -1,68 +1,174 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:medisync_app/features/lab_report/data/model/lab_report_model.dart';
-import 'package:medisync_app/global/constants/app_constants.dart';
-import 'package:medisync_app/global/storage/token_storage.dart';
-
+import 'dart:io';
+import 'package:dio/dio.dart';
+import '../../../../global/constants/app_constants.dart';
+import '../../../../global/storage/token_storage.dart';
+import '../model/lab_report_model.dart';
 
 class LabReportRepository {
-  final http.Client _client;
-  final TokenStorage _storage;
+  final Dio _dio;
 
-  LabReportRepository({http.Client? client, required TokenStorage storage})
-      : _client = client ?? http.Client(),
-        _storage = storage;
+  LabReportRepository()
+      : _dio = Dio(
+          BaseOptions(
+            baseUrl: AppConstants.labReportsUrl,
+            connectTimeout: const Duration(seconds: 30),
+            receiveTimeout: const Duration(seconds: 60),
+          ),
+        );
 
-  Future<Map<String, String>> _headers() async {
-    final token = await _storage.getAccessToken();
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
+  // ── Auth header helper ───────────────────────────────────────────────────────
+
+  Future<Options> _authOptions() async {
+    final token = await TokenStorage().getAccessToken();
+    return Options(headers: {'Authorization': 'Bearer $token'});
   }
 
-  Map<String, dynamic> _parse(http.Response r) {
-    final body = jsonDecode(r.body) as Map<String, dynamic>;
-    if (r.statusCode >= 200 && r.statusCode < 300) return body;
-    throw Exception(body['message'] ?? 'Request failed');
-  }
+  // ── Upload ───────────────────────────────────────────────────────────────────
 
-  Future<List<LabReport>> getMyReports() async {
-    final res = _parse(await _client.get(
-      Uri.parse(AppConstants.labReportsEndpoint),
-      headers: await _headers(),
-    ));
-    return (res['data'] as List? ?? [])
-        .map((e) => LabReport.fromJson(e))
-        .toList();
-  }
-
-  Future<LabReport> getReport(int id) async {
-    final res = _parse(await _client.get(
-      Uri.parse(AppConstants.labReportDetail(id)),
-      headers: await _headers(),
-    ));
-    return LabReport.fromJson(res['data']);
-  }
-
-  Future<LabReport> uploadReport({
-    required String title,
+  /// Upload a lab report image. Returns { report_id, status, message }.
+  Future<Map<String, dynamic>> uploadReport({
+    required File imageFile,
     required String reportType,
-    required String fileUrl,
-    required String testDate,
+    String title = '',
     String notes = '',
   }) async {
-    final res = _parse(await _client.post(
-      Uri.parse(AppConstants.labReportsEndpoint),
-      headers: await _headers(),
-      body: jsonEncode({
-        'title': title,
+    try {
+      final options = await _authOptions();
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split('/').last,
+        ),
         'report_type': reportType,
-        'file_url': fileUrl,
-        'test_date': testDate,
+        'title': title,
         'notes': notes,
-      }),
-    ));
-    return LabReport.fromJson(res['data']);
+      });
+      final response = await _dio.post(
+        '/upload/',
+        data: formData,
+        options: options,
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ── Status polling ───────────────────────────────────────────────────────────
+
+  /// Poll processing status: 'pending' | 'processing' | 'completed' | 'failed'
+  Future<String> getStatus(int reportId) async {
+    try {
+      final options = await _authOptions();
+      final response = await _dio.get('/$reportId/status/', options: options);
+      return response.data['status'] as String;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ── Full report detail ───────────────────────────────────────────────────────
+
+  /// Fetch full report with AI analysis.
+  Future<LabReport> getReport(int reportId) async {
+    try {
+      final options = await _authOptions();
+      final response = await _dio.get('/$reportId/', options: options);
+      return LabReport.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ── Summary card ─────────────────────────────────────────────────────────────
+
+  /// Lightweight summary for dashboard cards.
+  Future<Map<String, dynamic>> getSummary(int reportId) async {
+    try {
+      final options = await _authOptions();
+      final response = await _dio.get('/$reportId/summary/', options: options);
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ── List all reports ─────────────────────────────────────────────────────────
+
+  /// List all reports for the authenticated user.
+  Future<List<LabReport>> listReports() async {
+    try {
+      final options = await _authOptions();
+      final response = await _dio.get('/', options: options);
+      return (response.data as List)
+          .map((e) => LabReport.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
+
+  Future<void> deleteReport(int reportId) async {
+    try {
+      final options = await _authOptions();
+      await _dio.delete('/$reportId/delete/', options: options);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ── Ask AI a question ────────────────────────────────────────────────────────
+
+  /// Ask a follow-up question about a specific report.
+  /// Returns { id, question, answer, asked_at }.
+  Future<Map<String, dynamic>> askQuestion(int reportId, String question) async {
+    try {
+      final options = await _authOptions();
+      final response = await _dio.post(
+        '/$reportId/ask/',
+        data: {'question': question},
+        options: options,
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ── Q&A history ──────────────────────────────────────────────────────────────
+
+  /// Fetch all past questions & answers for a report.
+  Future<List<ReportQA>> getQuestions(int reportId) async {
+    try {
+      final options = await _authOptions();
+      final response = await _dio.get('/$reportId/questions/', options: options);
+      return (response.data as List)
+          .map((e) => ReportQA.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ── Error handler ────────────────────────────────────────────────────────────
+
+  Exception _handleError(DioException e) {
+    if (e.response != null) {
+      final data = e.response!.data;
+      if (data is Map && data.containsKey('detail')) {
+        return Exception(data['detail']);
+      }
+      if (data is Map && data.containsKey('error')) {
+        return Exception(data['error']);
+      }
+      return Exception('Server error: ${e.response!.statusCode}');
+    }
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return Exception('Request timed out. Please try again.');
+    }
+    return Exception('Network error. Check your connection.');
   }
 }

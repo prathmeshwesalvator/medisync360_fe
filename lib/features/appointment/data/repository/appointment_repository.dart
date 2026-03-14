@@ -11,12 +11,13 @@ class AppointmentRepository {
 
   Map<String, String> _auth(String token) => {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'Authorization': 'Bearer $token',
       };
 
   Map<String, dynamic> _parse(http.Response r) {
     final b = jsonDecode(r.body) as Map<String, dynamic>;
-    if (r.statusCode >= 200 && r.statusCode < 300) return b;
+    if (b['success'] == true) return b;
     throw ApiException(
       b['message'] ?? 'Request failed',
       errors: b['errors'],
@@ -24,34 +25,28 @@ class AppointmentRepository {
     );
   }
 
-  // ── Patient: book ────────────────────────────────────────────────────────────
+  // ── Patient: book ──────────────────────────────────────────────────────────
   Future<AppointmentModel> bookAppointment({
     required String token,
     required int doctorId,
-    int? hospitalId,
-    required String date,
-    required String slotTime,
-    required String type,
+    required int slotId,   // FIX: was slotTime (String) — backend expects slot_id (int)
     String reason = '',
-    String symptoms = '',
+    int? hospitalId,
   }) async {
     final r = _parse(await _client.post(
       Uri.parse(AppConstants.appointmentsEndpoint),
       headers: _auth(token),
       body: jsonEncode({
         'doctor': doctorId,
+        'slot_id': slotId,           // FIX: send slot_id, not slot_time
+        if (reason.isNotEmpty) 'reason': reason,
         if (hospitalId != null) 'hospital': hospitalId,
-        'appointment_date': date,
-        'slot_time': slotTime,
-        'appointment_type': type,
-        'reason': reason,
-        'symptoms': symptoms,
       }),
     ));
     return AppointmentModel.fromJson(r['data']);
   }
 
-  // ── Patient: list my appointments ────────────────────────────────────────────
+  // ── Patient: list my appointments ──────────────────────────────────────────
   Future<List<AppointmentModel>> getMyAppointments(String token,
       {String? status}) async {
     final uri = Uri.parse(AppConstants.myAppointmentsEndpoint).replace(
@@ -61,15 +56,17 @@ class AppointmentRepository {
     );
     final r = _parse(await _client.get(uri, headers: _auth(token)));
     final data = r['data'];
-    final list =
-        data is List ? data : (data['results'] as List? ?? data as List? ?? []);
+    final list = data is List
+        ? data
+        : (data['results'] as List? ?? data as List? ?? []);
     return list.map((a) => AppointmentModel.fromJson(a)).toList();
   }
 
-  // ── Doctor: list appointments ────────────────────────────────────────────────
+  // ── Doctor: list appointments ──────────────────────────────────────────────
   Future<List<AppointmentModel>> getDoctorAppointments(String token,
       {String? status, String? date}) async {
-    final uri = Uri.parse(AppConstants.doctorAppointmentsEndpoint).replace(
+    final uri =
+        Uri.parse(AppConstants.doctorAppointmentsEndpoint).replace(
       queryParameters: {
         if (status != null && status.isNotEmpty) 'status': status,
         if (date != null && date.isNotEmpty) 'date': date,
@@ -77,12 +74,13 @@ class AppointmentRepository {
     );
     final r = _parse(await _client.get(uri, headers: _auth(token)));
     final data = r['data'];
-    final list =
-        data is List ? data : (data['results'] as List? ?? data as List? ?? []);
+    final list = data is List
+        ? data
+        : (data['results'] as List? ?? data as List? ?? []);
     return list.map((a) => AppointmentModel.fromJson(a)).toList();
   }
 
-  // ── Detail ───────────────────────────────────────────────────────────────────
+  // ── Detail ─────────────────────────────────────────────────────────────────
   Future<AppointmentModel> getDetail(int id, String token) async {
     final r = _parse(await _client.get(
       Uri.parse(AppConstants.appointmentDetail(id)),
@@ -91,7 +89,7 @@ class AppointmentRepository {
     return AppointmentModel.fromJson(r['data']);
   }
 
-  // ── Cancel ───────────────────────────────────────────────────────────────────
+  // ── Cancel ─────────────────────────────────────────────────────────────────
   Future<AppointmentModel> cancel(int id, String token,
       {String reason = ''}) async {
     final r = _parse(await _client.post(
@@ -102,38 +100,36 @@ class AppointmentRepository {
     return AppointmentModel.fromJson(r['data']);
   }
 
-  // ── Reschedule ───────────────────────────────────────────────────────────────
+  // ── Reschedule ─────────────────────────────────────────────────────────────
   Future<AppointmentModel> reschedule(
-      int id, String token, String newDate, String newSlotTime,
-      {String reason = ''}) async {
+    int id,
+    String token,
+    int newSlotId, // FIX: was (newDate, newSlotTime) — backend expects slot_id
+  ) async {
     final r = _parse(await _client.post(
       Uri.parse(AppConstants.rescheduleAppointment(id)),
       headers: _auth(token),
-      body: jsonEncode({
-        'new_date': newDate,
-        'new_slot_time': newSlotTime,
-        'reason': reason,
-      }),
+      body: jsonEncode({'slot_id': newSlotId}),
     ));
     return AppointmentModel.fromJson(r['data']);
   }
 
-  // ── Confirm (doctor action) ───────────────────────────────────────────────────
-  Future<AppointmentModel> confirm(int id, String token) async {
-    final r = _parse(await _client.post(
-      Uri.parse('${AppConstants.appointmentDetail(id)}confirm/'),
-      headers: _auth(token),
-    ));
-    return AppointmentModel.fromJson(r['data']);
-  }
-
-  // ── Complete (doctor action) ──────────────────────────────────────────────────
+  // ── Complete (doctor action) ───────────────────────────────────────────────
   Future<AppointmentModel> complete(int id, String token,
       {String notes = ''}) async {
     final r = _parse(await _client.post(
       Uri.parse(AppConstants.completeAppointment(id)),
       headers: _auth(token),
       body: jsonEncode({'notes': notes}),
+    ));
+    return AppointmentModel.fromJson(r['data']);
+  }
+
+  // ── Confirm (doctor action) ────────────────────────────────────────────────
+  Future<AppointmentModel> confirm(int id, String token) async {
+    final r = _parse(await _client.post(
+      Uri.parse('${AppConstants.appointmentDetail(id)}confirm/'),
+      headers: _auth(token),
     ));
     return AppointmentModel.fromJson(r['data']);
   }

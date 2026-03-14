@@ -8,7 +8,11 @@ import 'package:medisync_app/features/dashboard/presentation/widgets/hospital_li
 import 'package:medisync_app/features/dashboard/presentation/widgets/medisync_appbar.dart';
 import 'package:medisync_app/features/appointment/presentation/pages/appointment_list_screen.dart';
 import 'package:medisync_app/features/ehr/presentation/pages/ehr_screen.dart';
+import 'package:medisync_app/features/lab_report/presentation/pages/upload_lab_report_screen.dart';
 import 'package:medisync_app/features/notification/presentation/screens/notification_screen.dart';
+import 'package:medisync_app/features/sos/data/repository/sos_repository.dart';
+import 'package:medisync_app/features/sos/presentation/bloc/sos_cubit.dart';
+import 'package:medisync_app/features/sos/presentation/pages/sos_screen.dart';
 import 'package:medisync_app/global/storage/token_storage.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
 
@@ -27,39 +31,47 @@ class _UserDashboardState extends State<UserDashboard> {
     final authState = context.watch<AuthCubit>().state;
     final user = authState is AuthSuccess ? authState.user : null;
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          // Tab 0 — Home
-          _UserHomeTab(user: user, onTabChange: _setTab),
+    return BlocListener<AuthCubit, AuthState>(
+      listener: (context, state) {
+        if (state is AuthLoggedOut || state is AuthUnauthenticated) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            // Tab 0 — Home
+            _UserHomeTab(user: user, onTabChange: _setTab),
 
-          // Tab 1 — Hospitals
-          BlocProvider(
-            create: (_) => HospitalCubit(HospitalRepository(), TokenStorage()),
-            child: const HospitalListScreen(),
-          ),
+            // Tab 1 — Hospitals
+            BlocProvider(
+              create: (_) =>
+                  HospitalCubit(HospitalRepository(), TokenStorage()),
+              child: const HospitalListScreen(),
+            ),
 
-          // Tab 2 — Appointments ✅ FIXED (was commented out)
-          const AppointmentListScreen(),
+            // Tab 2 — Appointments
+            const AppointmentListScreen(),
 
-          // Tab 3 — Records (EHR)
-          const EHRScreen(),
+            // Tab 3 — Records (EHR)
+            const EHRScreen(),
 
-          // Tab 4 — Profile
-          const _ProfileTab(),
-        ],
-      ),
-      bottomNavigationBar: _BottomNav(
-        currentIndex: _currentIndex,
-        onTap: _setTab,
-        items: const [
-          _NavItem(icon: Icons.home_rounded, label: 'Home'),
-          _NavItem(icon: Icons.local_hospital_rounded, label: 'Hospitals'),
-          _NavItem(icon: Icons.calendar_today_rounded, label: 'Appointments'),
-          _NavItem(icon: Icons.folder_open_rounded, label: 'Records'),
-          _NavItem(icon: Icons.person_rounded, label: 'Profile'),
-        ],
+            // Tab 4 — Profile
+            const _ProfileTab(),
+          ],
+        ),
+        bottomNavigationBar: _BottomNav(
+          currentIndex: _currentIndex,
+          onTap: _setTab,
+          items: const [
+            _NavItem(icon: Icons.home_rounded, label: 'Home'),
+            _NavItem(icon: Icons.local_hospital_rounded, label: 'Hospitals'),
+            _NavItem(icon: Icons.calendar_today_rounded, label: 'Appointments'),
+            _NavItem(icon: Icons.folder_open_rounded, label: 'Records'),
+            _NavItem(icon: Icons.person_rounded, label: 'Profile'),
+          ],
+        ),
       ),
     );
   }
@@ -68,6 +80,7 @@ class _UserDashboardState extends State<UserDashboard> {
 }
 
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
+
 class _UserHomeTab extends StatelessWidget {
   final UserModel? user;
   final ValueChanged<int> onTabChange;
@@ -124,12 +137,8 @@ class _UserHomeTab extends StatelessWidget {
                   color: AppColors.accent,
                   onTap: () => onTabChange(3),
                 ),
-                _QuickAction(
-                  icon: Icons.sos_rounded,
-                  label: 'SOS Alert',
-                  color: AppColors.error,
-                  onTap: () {/* TODO: SOS */},
-                ),
+                // SOS button — launches full-screen SOS flow
+                _SOSQuickAction(),
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -143,6 +152,119 @@ class _UserHomeTab extends StatelessWidget {
     );
   }
 }
+
+// ─── SOS Quick Action ─────────────────────────────────────────────────────────
+
+class _SOSQuickAction extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return _PulsingSOSButton(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => BlocProvider(
+            create: (_) => SosCubit(SosRepository(), TokenStorage()),
+            child: const _SosFlowEntry(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SosFlowEntry extends StatelessWidget {
+  const _SosFlowEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<SosCubit, SosState>(
+      listener: (context, state) {
+        if (state is SosCancelled) Navigator.of(context).pop();
+      },
+      child: SosLauncher.buildFlow(context),
+    );
+  }
+}
+
+// ─── Pulsing SOS button tile ──────────────────────────────────────────────────
+
+class _PulsingSOSButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _PulsingSOSButton({required this.onTap});
+
+  @override
+  State<_PulsingSOSButton> createState() => _PulsingSOSButtonState();
+}
+
+class _PulsingSOSButtonState extends State<_PulsingSOSButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
+    _anim = Tween<double>(begin: 0.0, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (context, child) => Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadius.lg,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.error.withOpacity(0.15 + _anim.value * 0.25),
+                blurRadius: 16 + _anim.value * 12,
+                spreadRadius: _anim.value * 4,
+              ),
+            ],
+            border: Border.all(
+              color: AppColors.error.withOpacity(0.3 + _anim.value * 0.4),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.1 + _anim.value * 0.1),
+                  borderRadius: AppRadius.sm,
+                ),
+                child: const Icon(Icons.sos_rounded,
+                    color: AppColors.error, size: 22),
+              ),
+              Text('SOS Alert',
+                  style: AppTextStyles.labelLarge
+                      .copyWith(fontSize: 13, color: AppColors.error)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Greeting card ────────────────────────────────────────────────────────────
 
 class _GreetingCard extends StatelessWidget {
   final UserModel? user;
@@ -282,6 +404,7 @@ class _UpcomingPlaceholder extends StatelessWidget {
 }
 
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
+
 class _ProfileTab extends StatelessWidget {
   const _ProfileTab();
 
@@ -292,6 +415,9 @@ class _ProfileTab extends StatelessWidget {
 
     return Scaffold(
       appBar: const MediSyncAppBar(title: 'My Profile'),
+      // FIX: removed broken Drawer with context-capturing ListTile.
+      // UploadLabReportScreen is now a proper _ProfileMenuItem below,
+      // consistent with all other navigation items in this tab.
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
@@ -335,6 +461,16 @@ class _ProfileTab extends StatelessWidget {
               state?.setState(() => state._currentIndex = 3);
             },
           ),
+          // FIX: Lab Report Analyzer — correct Navigator.push with
+          // proper BuildContext from the build method, not a closure.
+          _ProfileMenuItem(
+            icon: Icons.biotech_rounded,
+            label: 'Lab Report Analyzer',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const UploadLabReportScreen()),
+            ),
+          ),
           _ProfileMenuItem(
             icon: Icons.notifications_outlined,
             label: 'Notifications',
@@ -353,10 +489,7 @@ class _ProfileTab extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           OutlinedButton.icon(
-            onPressed: () {
-              context.read<AuthCubit>().logout();
-              Navigator.pushReplacementNamed(context, '/login');
-            },
+            onPressed: () => context.read<AuthCubit>().logout(),
             icon: const Icon(Icons.logout_rounded, size: 18),
             label: const Text('Sign out'),
             style: OutlinedButton.styleFrom(
@@ -400,6 +533,7 @@ class _ProfileMenuItem extends StatelessWidget {
 }
 
 // ─── Bottom Nav ───────────────────────────────────────────────────────────────
+
 class _NavItem {
   final IconData icon;
   final String label;

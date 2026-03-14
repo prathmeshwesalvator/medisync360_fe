@@ -35,7 +35,6 @@ class MediSyncApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Single shared instance passed to every cubit that needs it
     final tokenStorage = TokenStorage();
 
     return MultiBlocProvider(
@@ -61,7 +60,7 @@ class MediSyncApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (_) => LabReportCubit(
-              LabReportRepository(storage: tokenStorage),
+              LabReportRepository(),
             ),
           ),
           BlocProvider(
@@ -105,6 +104,11 @@ class _SplashRouter extends StatelessWidget {
         }
         if (state is AuthSuccess) return _dashboardFor(state.user.role);
         if (state is AuthPendingApproval) return const _PendingApprovalScreen();
+        // FIX: AuthLoggedOut and AuthUnauthenticated both route to login.
+        // Previously only AuthSuccess/AuthPendingApproval were handled,
+        // so AuthLoggedOut/AuthUnauthenticated fell through to LoginScreen
+        // via the default case — that was correct by accident, but
+        // explicit is safer.
         return const LoginScreen();
       },
     );
@@ -160,6 +164,8 @@ class _PendingApprovalScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               OutlinedButton(
+                // FIX: only call logout() — BlocBuilder handles navigation
+                // after AuthLoggedOut is emitted
                 onPressed: () => context.read<AuthCubit>().logout(),
                 child: const Text('Logout'),
               ),
@@ -198,21 +204,29 @@ class _AdminPlaceholderState extends State<_AdminPlaceholder> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) async {
-        if (didPop) return;
-        await handleBack();
+    // FIX: listen for logout so admin can also be logged out cleanly
+    return BlocListener<AuthCubit, AuthState>(
+      listener: (context, state) {
+        if (state is AuthLoggedOut || state is AuthUnauthenticated) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       },
-      child: Scaffold(
-        body: SafeArea(
-          child: InAppWebView(
-            initialUrlRequest: URLRequest(
-              url: WebUri(AppConstants.adminBase),
+      child: PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) async {
+          if (didPop) return;
+          await handleBack();
+        },
+        child: Scaffold(
+          body: SafeArea(
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(
+                url: WebUri(AppConstants.adminBase),
+              ),
+              onWebViewCreated: (controller) {
+                webViewController = controller;
+              },
             ),
-            onWebViewCreated: (controller) {
-              webViewController = controller;
-            },
           ),
         ),
       ),

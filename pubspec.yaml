@@ -13,9 +13,11 @@ dependencies:
   # State management
   flutter_bloc: ^8.1.5
   bloc: ^8.1.4
+  equatable: ^2.0.8
 
   # Networking
   http: ^1.2.1
+  dio: ^5.9.2
 
   # Local storage
   shared_preferences: ^2.2.3
@@ -28,6 +30,7 @@ dependencies:
   latlong2: ^0.9.1
   geolocator: ^13.0.2
   url_launcher: ^6.3.1
+  image_picker: ^1.2.1
 
   # UI
   cupertino_icons: ^1.0.6

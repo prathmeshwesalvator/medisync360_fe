@@ -15,8 +15,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
+  final _formKey     = GlobalKey<FormState>();
+  final _emailCtrl   = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
   @override
@@ -34,21 +34,35 @@ class _LoginScreenState extends State<LoginScreen> {
         );
   }
 
+  void _showToast(String message, {Color color = AppColors.accent}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthSuccess) {
+            // FIX: show success toast before navigating
+            _showToast('Welcome back, ${state.user.fullName.split(' ').first}!');
             _routeToDashboard(context, state.user.role);
-          } else if (state is AuthFailure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppColors.error,
-                behavior: SnackBarBehavior.floating,
-              ),
+          } else if (state is AuthPendingApproval) {
+            // FIX: handle pending approval on login (doctor/hospital not yet approved)
+            _showToast(
+              'Your account is pending admin approval.',
+              color: AppColors.warning,
             );
+          } else if (state is AuthFailure) {
+            _showToast(state.message, color: AppColors.error);
           }
         },
         builder: (context, state) {
@@ -68,7 +82,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xxl),
 
-                    // Email
                     AppTextField(
                       label: 'Email address',
                       hint: 'you@example.com',
@@ -79,7 +92,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
 
-                    // Password
                     AppTextField(
                       label: 'Password',
                       hint: '••••••••',
@@ -89,13 +101,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           const Icon(Icons.lock_outline_rounded, size: 18),
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      validator: (v) => v == null || v.isEmpty
-                          ? 'Password is required'
-                          : null,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Password is required' : null,
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // Login Button
                     _PrimaryButton(
                       label: 'Sign in',
                       isLoading: isLoading,
@@ -107,7 +117,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     const _OrDivider(),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // Register CTA
                     Center(
                       child: RichText(
                         text: TextSpan(
@@ -139,27 +148,25 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // FIX: routes match main.dart exactly
   void _routeToDashboard(BuildContext context, String role) {
     switch (role) {
       case UserRole.doctor:
         Navigator.pushReplacementNamed(context, '/dashboard/doctor');
         break;
-
       case UserRole.hospital:
         Navigator.pushReplacementNamed(context, '/dashboard/hospital');
         break;
-
       case UserRole.admin:
         Navigator.pushReplacementNamed(context, '/dashboard/admin');
         break;
-
       default:
         Navigator.pushReplacementNamed(context, '/dashboard/user');
     }
   }
 }
 
-// ─── Shared widgets (also used by RegisterScreen) ─────────────────────────────
+// ─── Shared widgets ───────────────────────────────────────────────────────────
 
 class _PrimaryButton extends StatelessWidget {
   final String label;

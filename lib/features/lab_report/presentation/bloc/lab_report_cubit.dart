@@ -1,49 +1,125 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:medisync_app/features/lab_report/data/repository/lab_report_repository.dart';
 import 'lab_report_state.dart';
 
 class LabReportCubit extends Cubit<LabReportState> {
-  final LabReportRepository _repo;
+  final LabReportRepository _repository;
 
-  LabReportCubit(this._repo) : super(LabReportInitial());
+  LabReportCubit(this._repository) : super(LabReportInitial());
 
-  Future<void> loadReports() async {
-    emit(LabReportLoading());
-    try {
-      emit(LabReportLoaded(await _repo.getMyReports()));
-    } catch (e) {
-      emit(LabReportError(e.toString().replaceFirst('Exception: ', '')));
-    }
-  }
-
-  Future<void> loadReport(int id) async {
-    emit(LabReportLoading());
-    try {
-      emit(LabReportDetail(await _repo.getReport(id)));
-    } catch (e) {
-      emit(LabReportError(e.toString().replaceFirst('Exception: ', '')));
-    }
-  }
+  // ── Upload + auto-poll ───────────────────────────────────────────────────────
 
   Future<void> uploadReport({
-    required String title,
+    required File imageFile,
     required String reportType,
-    required String fileUrl,
-    required String testDate,
+    String title = '',
     String notes = '',
   }) async {
-    emit(LabReportLoading());
+    emit(LabReportUploading());
     try {
-      final report = await _repo.uploadReport(
-        title: title,
+      final result = await _repository.uploadReport(
+        imageFile: imageFile,
         reportType: reportType,
-        fileUrl: fileUrl,
-        testDate: testDate,
+        title: title,
         notes: notes,
       );
-      emit(LabReportUploaded(report));
+      final int reportId = result['report_id'];
+      emit(LabReportAnalyzing(reportId: reportId));
+      _pollStatus(reportId);
     } catch (e) {
-      emit(LabReportError(e.toString().replaceFirst('Exception: ', '')));
+      emit(LabReportError(message: e.toString()));
+    }
+  }
+
+  void _pollStatus(int reportId) {
+    Timer.periodic(const Duration(seconds: 3), (timer) async {
+      try {
+        final statusStr = await _repository.getStatus(reportId);
+        if (statusStr == 'completed') {
+          timer.cancel();
+          await _loadReport(reportId);
+        } else if (statusStr == 'failed') {
+          timer.cancel();
+          emit(const LabReportError(
+              message: 'Analysis failed. Please upload a clearer image.'));
+        }
+        // 'pending' | 'processing' → keep polling
+      } catch (_) {
+        timer.cancel();
+        emit(const LabReportError(message: 'Error checking report status.'));
+      }
+    });
+  }
+
+  Future<void> _loadReport(int reportId) async {
+    try {
+      final report = await _repository.getReport(reportId);
+      emit(LabReportLoaded(report: report));
+    } catch (e) {
+      emit(LabReportError(message: e.toString()));
+    }
+  }
+
+  // ── List ─────────────────────────────────────────────────────────────────────
+
+  Future<void> loadAllReports() async {
+    emit(LabReportListLoading());
+    try {
+      final reports = await _repository.listReports();
+      emit(LabReportListLoaded(reports: reports));
+    } catch (e) {
+      emit(LabReportError(message: e.toString()));
+    }
+  }
+
+  // ── Detail ───────────────────────────────────────────────────────────────────
+
+  Future<void> loadReportDetail(int reportId) async {
+    emit(LabReportDetailLoading());
+    try {
+      final report = await _repository.getReport(reportId);
+      emit(LabReportLoaded(report: report));
+    } catch (e) {
+      emit(LabReportError(message: e.toString()));
+    }
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
+
+  Future<void> deleteReport(int reportId) async {
+    try {
+      await _repository.deleteReport(reportId);
+      await loadAllReports();
+    } catch (e) {
+      emit(LabReportError(message: e.toString()));
+    }
+  }
+
+  // ── Ask AI question ──────────────────────────────────────────────────────────
+
+  Future<void> askQuestion(int reportId, String question) async {
+    emit(LabReportAsking());
+    try {
+      final result = await _repository.askQuestion(reportId, question);
+      emit(LabReportAnswered(
+        question: result['question'] as String,
+        answer: result['answer'] as String,
+      ));
+    } catch (e) {
+      emit(LabReportError(message: e.toString()));
+    }
+  }
+
+  // ── Q&A history ──────────────────────────────────────────────────────────────
+
+  Future<void> loadQuestions(int reportId) async {
+    try {
+      final questions = await _repository.getQuestions(reportId);
+      emit(LabReportQuestionsLoaded(questions: questions));
+    } catch (e) {
+      emit(LabReportError(message: e.toString()));
     }
   }
 }

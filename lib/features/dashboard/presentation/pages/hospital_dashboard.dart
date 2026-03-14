@@ -7,6 +7,11 @@ import 'package:medisync_app/features/dashboard/presentation/widgets/empty_state
 import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import 'package:medisync_app/features/dashboard/presentation/widgets/medisync_appbar.dart';
 import 'package:medisync_app/features/dashboard/presentation/widgets/stats_card.dart';
+import 'package:medisync_app/features/notification/presentation/screens/notification_screen.dart';
+import 'package:medisync_app/features/sos/data/repository/sos_repository.dart';
+import 'package:medisync_app/features/sos/presentation/bloc/sos_cubit.dart';
+import 'package:medisync_app/features/sos/presentation/pages/hospital_sos_screen.dart';
+import 'package:medisync_app/global/storage/token_storage.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
 
 class HospitalDashboard extends StatefulWidget {
@@ -21,19 +26,40 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: const [
-          _HospitalOverviewTab(),
-          _CapacityManagementTab(),
-          _DepartmentsTab(),
-          _HospitalProfileTab(),
-        ],
-      ),
-      bottomNavigationBar: _HospitalBottomNav(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+    // BlocListener at top level handles logout navigation cleanly
+    return BlocListener<AuthCubit, AuthState>(
+      listener: (context, state) {
+        if (state is AuthLoggedOut || state is AuthUnauthenticated) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            // Tab 0 — Overview
+            const _HospitalOverviewTab(),
+
+            // Tab 1 — Capacity
+            const _CapacityManagementTab(),
+
+            // Tab 2 — SOS Alerts (scoped BlocProvider)
+            BlocProvider(
+              create: (_) => SosCubit(SosRepository(), TokenStorage()),
+              child: const HospitalSosScreen(),
+            ),
+
+            // Tab 3 — Departments
+            const _DepartmentsTab(),
+
+            // Tab 4 — Account
+            const _HospitalProfileTab(),
+          ],
+        ),
+        bottomNavigationBar: _HospitalBottomNav(
+          currentIndex: _currentIndex,
+          onTap: (i) => setState(() => _currentIndex = i),
+        ),
       ),
     );
   }
@@ -65,7 +91,10 @@ class _HospitalOverviewTabState extends State<_HospitalOverviewTab> {
         title: 'Dashboard',
         actions: [
           IconButton(
-              icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const NotificationScreen())),
+          ),
         ],
       ),
       body: BlocBuilder<HospitalCubit, HospitalState>(
@@ -79,23 +108,26 @@ class _HospitalOverviewTabState extends State<_HospitalOverviewTab> {
               subtitle: state.message,
               icon: Icons.error_outline_rounded,
               buttonLabel: 'Retry',
-              onButtonTap: () => context.read<HospitalCubit>().loadMyHospital(),
+              onButtonTap: () =>
+                  context.read<HospitalCubit>().loadMyHospital(),
             );
           }
           if (state is MyHospitalLoaded) {
             final h = state.hospital;
             return RefreshIndicator(
-              onRefresh: () => context.read<HospitalCubit>().loadMyHospital(),
+              onRefresh: () =>
+                  context.read<HospitalCubit>().loadMyHospital(),
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
-                  // Welcome card
                   _WelcomeCard(
-                      hospitalName: h.name, userName: user?.fullName ?? ''),
+                    hospitalName: h.name,
+                    userName: user?.fullName ?? '',
+                  ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  // Stats grid
-                  const Text('Live Capacity', style: AppTextStyles.headlineMedium),
+                  const Text('Live Capacity',
+                      style: AppTextStyles.headlineMedium),
                   const SizedBox(height: AppSpacing.md),
                   GridView.count(
                     crossAxisCount: 2,
@@ -103,7 +135,7 @@ class _HospitalOverviewTabState extends State<_HospitalOverviewTab> {
                     crossAxisSpacing: AppSpacing.md,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.3,
+                    childAspectRatio: 1.1,
                     children: [
                       StatCard(
                         label: 'Available Beds',
@@ -141,8 +173,8 @@ class _HospitalOverviewTabState extends State<_HospitalOverviewTab> {
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  // Capacity bars
-                  const Text('Bed Occupancy', style: AppTextStyles.headlineMedium),
+                  const Text('Bed Occupancy',
+                      style: AppTextStyles.headlineMedium),
                   const SizedBox(height: AppSpacing.md),
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
@@ -174,7 +206,6 @@ class _HospitalOverviewTabState extends State<_HospitalOverviewTab> {
               ),
             );
           }
-          // Not created yet
           return const EmptyStateWidget(
             title: 'No hospital profile',
             subtitle:
@@ -191,7 +222,8 @@ class _WelcomeCard extends StatelessWidget {
   final String hospitalName;
   final String userName;
 
-  const _WelcomeCard({required this.hospitalName, required this.userName});
+  const _WelcomeCard(
+      {required this.hospitalName, required this.userName});
 
   @override
   Widget build(BuildContext context) {
@@ -205,31 +237,28 @@ class _WelcomeCard extends StatelessWidget {
         ),
         borderRadius: AppRadius.lg,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Welcome back,',
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: Colors.white70)),
-                Text(
-                  hospitalName,
-                  style: AppTextStyles.titleLarge.copyWith(color: Colors.white),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 2),
-                Text('Managed by $userName',
-                    style:
-                        AppTextStyles.caption.copyWith(color: Colors.white70)),
-              ],
-            ),
+      child: Row(children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Welcome back,',
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(color: Colors.white70)),
+              Text(hospitalName,
+                  style: AppTextStyles.titleLarge
+                      .copyWith(color: Colors.white),
+                  maxLines: 2),
+              const SizedBox(height: 2),
+              Text('Managed by $userName',
+                  style: AppTextStyles.caption
+                      .copyWith(color: Colors.white70)),
+            ],
           ),
-          const Icon(Icons.local_hospital_rounded,
-              color: Colors.white54, size: 48),
-        ],
-      ),
+        ),
+        const Icon(Icons.local_hospital_rounded,
+            color: Colors.white54, size: 48),
+      ]),
     );
   }
 }
@@ -240,7 +269,8 @@ class _CapacityManagementTab extends StatefulWidget {
   const _CapacityManagementTab();
 
   @override
-  State<_CapacityManagementTab> createState() => _CapacityManagementTabState();
+  State<_CapacityManagementTab> createState() =>
+      _CapacityManagementTabState();
 }
 
 class _CapacityManagementTabState extends State<_CapacityManagementTab> {
@@ -273,20 +303,25 @@ class _CapacityManagementTabState extends State<_CapacityManagementTab> {
       body: BlocConsumer<HospitalCubit, HospitalState>(
         listener: (context, state) {
           if (state is CapacityUpdated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Capacity updated successfully!'),
+            _bedsCtrl.clear();
+            _icuCtrl.clear();
+            _emergencyCtrl.clear();
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(const SnackBar(
+                content: Text('✓ Capacity updated successfully!'),
                 backgroundColor: AppColors.accent,
-              ),
-            );
+                behavior: SnackBarBehavior.floating,
+              ));
           }
           if (state is HospitalError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(
                 content: Text(state.message),
                 backgroundColor: AppColors.error,
-              ),
-            );
+                behavior: SnackBarBehavior.floating,
+              ));
           }
         },
         builder: (context, state) {
@@ -298,31 +333,29 @@ class _CapacityManagementTabState extends State<_CapacityManagementTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Info banner
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: const BoxDecoration(
                       color: AppColors.primaryLight,
                       borderRadius: AppRadius.md,
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.info_outline_rounded,
-                            color: AppColors.primary, size: 18),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            'Update the current number of available beds. This is visible to patients in real time.',
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.primary),
-                          ),
+                    child: Row(children: [
+                      const Icon(Icons.info_outline_rounded,
+                          color: AppColors.primary, size: 18),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Update the current number of available beds. This is visible to patients in real time.',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.primary),
                         ),
-                      ],
-                    ),
+                      ),
+                    ]),
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  const Text('General Beds', style: AppTextStyles.labelLarge),
+                  const Text('General Beds',
+                      style: AppTextStyles.labelLarge),
                   const SizedBox(height: AppSpacing.xs),
                   TextFormField(
                     controller: _bedsCtrl,
@@ -346,7 +379,8 @@ class _CapacityManagementTabState extends State<_CapacityManagementTab> {
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       hintText: 'Available ICU beds',
-                      prefixIcon: Icon(Icons.monitor_heart_rounded, size: 18),
+                      prefixIcon:
+                          Icon(Icons.monitor_heart_rounded, size: 18),
                     ),
                     validator: (v) => v == null || v.isEmpty
                         ? 'Required'
@@ -356,14 +390,16 @@ class _CapacityManagementTabState extends State<_CapacityManagementTab> {
                   ),
                   const SizedBox(height: AppSpacing.md),
 
-                  const Text('Emergency Beds', style: AppTextStyles.labelLarge),
+                  const Text('Emergency Beds',
+                      style: AppTextStyles.labelLarge),
                   const SizedBox(height: AppSpacing.xs),
                   TextFormField(
                     controller: _emergencyCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       hintText: 'Available emergency beds',
-                      prefixIcon: Icon(Icons.local_hospital_rounded, size: 18),
+                      prefixIcon:
+                          Icon(Icons.local_hospital_rounded, size: 18),
                     ),
                     validator: (v) => v == null || v.isEmpty
                         ? 'Required'
@@ -382,7 +418,8 @@ class _CapacityManagementTabState extends State<_CapacityManagementTab> {
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
+                                strokeWidth: 2,
+                                color: Colors.white))
                         : const Text('Update Capacity'),
                   ),
                 ],
@@ -405,7 +442,7 @@ class _DepartmentsTab extends StatelessWidget {
     return const Scaffold(
       body: EmptyStateWidget(
         title: 'Departments',
-        subtitle: 'Department management coming in next step',
+        subtitle: 'Department management coming soon',
         icon: Icons.account_tree_rounded,
       ),
     );
@@ -424,17 +461,17 @@ class _HospitalProfileTab extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          const _ProfileMenuItem(icon: Icons.edit_rounded, label: 'Edit Profile'),
+          const _ProfileMenuItem(
+              icon: Icons.edit_rounded, label: 'Edit Profile'),
           const _ProfileMenuItem(
               icon: Icons.history_rounded, label: 'Capacity History'),
           const _ProfileMenuItem(
               icon: Icons.lock_outline_rounded, label: 'Change Password'),
           const SizedBox(height: AppSpacing.md),
+          // Logout — only calls logout(); BlocListener at dashboard level
+          // handles navigation to /login
           OutlinedButton.icon(
-            onPressed: () {
-              context.read<AuthCubit>().logout();
-              Navigator.pushReplacementNamed(context, '/login');
-            },
+            onPressed: () => context.read<AuthCubit>().logout(),
             icon: const Icon(Icons.logout_rounded, size: 18),
             label: const Text('Sign out'),
             style: OutlinedButton.styleFrom(
@@ -480,26 +517,34 @@ class _HospitalBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _HospitalBottomNav({required this.currentIndex, required this.onTap});
+  const _HospitalBottomNav(
+      {required this.currentIndex, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    const items = [
-      BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard_rounded), label: 'Overview'),
-      BottomNavigationBarItem(icon: Icon(Icons.bed_rounded), label: 'Capacity'),
-      BottomNavigationBarItem(
-          icon: Icon(Icons.account_tree_rounded), label: 'Departments'),
-      BottomNavigationBarItem(
-          icon: Icon(Icons.person_rounded), label: 'Account'),
-    ];
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
       type: BottomNavigationBarType.fixed,
       selectedItemColor: AppColors.hospitalRole,
       unselectedItemColor: AppColors.textHint,
-      items: items,
+      items: const [
+        BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_rounded), label: 'Overview'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.bed_rounded), label: 'Capacity'),
+        // SOS tab with red emergency icon
+        BottomNavigationBarItem(
+          icon: Icon(Icons.emergency_rounded, color: AppColors.error),
+          activeIcon:
+              Icon(Icons.emergency_rounded, color: AppColors.error, size: 28),
+          label: 'SOS',
+        ),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.account_tree_rounded), label: 'Departments'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.person_rounded), label: 'Account'),
+      ],
     );
   }
 }
