@@ -8,7 +8,7 @@
 </queries>
 
     <application
-        android:label="medisync360_fe"
+        android:label="MediSync 360"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
