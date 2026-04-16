@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:medisync_app/features/appointment/data/models/appointment_model.dart';
 import 'package:medisync_app/features/appointment/presentation/bloc/appointment_cubit.dart';
 import 'package:medisync_app/features/dashboard/data/models/doctor_model.dart';
 import 'package:medisync_app/features/dashboard/presentation/bloc/doctor_cubit.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
@@ -16,21 +18,18 @@ class BookAppointmentScreen extends StatefulWidget {
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   DoctorSlotModel? _selectedSlot;
-  final _reasonCtrl = TextEditingController();
+  String _appointmentType = AppointmentType.inPerson;
+  final _reasonCtrl   = TextEditingController();
+  final _symptomsCtrl = TextEditingController();
   AvailableSlotsModel? _slotsData;
   bool _loadingSlots = false;
 
   @override
   void initState() {
     super.initState();
-    // FIX: check if slots are already loaded in cubit state before firing a
-    // new request. BlocListener won't re-fire for the same state, so if we
-    // just call loadSlots() and the cubit is already DoctorSlotsLoaded, the
-    // listener never triggers and _loadingSlots stays true forever.
     final current = context.read<DoctorCubit>().state;
     if (current is DoctorSlotsLoaded) {
       _slotsData = current.slots;
-      _loadingSlots = false;
     } else {
       _triggerLoadSlots();
     }
@@ -39,25 +38,16 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   @override
   void dispose() {
     _reasonCtrl.dispose();
+    _symptomsCtrl.dispose();
     super.dispose();
   }
 
   String _dateStr(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  String _displayDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
-
-  // Separate the cubit call so date changes can reuse it cleanly
   void _triggerLoadSlots() {
-    setState(() {
-      _loadingSlots = true;
-      _selectedSlot = null;
-      _slotsData = null;
-    });
-    context.read<DoctorCubit>().loadSlots(
-          widget.doctor.id,
-          _dateStr(_selectedDate),
-        );
+    setState(() { _loadingSlots = true; _selectedSlot = null; _slotsData = null; });
+    context.read<DoctorCubit>().loadSlots(widget.doctor.id, _dateStr(_selectedDate));
   }
 
   void _confirm() {
@@ -66,6 +56,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           doctorId: widget.doctor.id,
           slotId: _selectedSlot!.id,
           reason: _reasonCtrl.text.trim(),
+          symptoms: _symptomsCtrl.text.trim(),
+          appointmentType: _appointmentType,
         );
   }
 
@@ -79,6 +71,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(1), child: Divider(height: 1)),
       ),
       body: MultiBlocListener(
         listeners: [
@@ -88,13 +82,11 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 ScaffoldMessenger.of(context)
                   ..hideCurrentSnackBar()
                   ..showSnackBar(const SnackBar(
-                    content: Text('✓ Appointment booked successfully!'),
+                    content: Text('✓ Appointment booked! Awaiting doctor confirmation.'),
                     backgroundColor: AppColors.accent,
                     behavior: SnackBarBehavior.floating,
                   ));
-                Navigator.of(context)
-                  ..pop()
-                  ..pop();
+                Navigator.of(context)..pop()..pop();
               }
               if (state is AppointmentError) {
                 ScaffoldMessenger.of(context)
@@ -113,12 +105,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 setState(() => _loadingSlots = true);
               }
               if (state is DoctorSlotsLoaded) {
-                // FIX: always update _slotsData here, whether it's the first
-                // load or a date-change reload
-                setState(() {
-                  _slotsData = state.slots;
-                  _loadingSlots = false;
-                });
+                setState(() { _slotsData = state.slots; _loadingSlots = false; });
               }
               if (state is DoctorError) {
                 setState(() => _loadingSlots = false);
@@ -127,18 +114,16 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           ),
         ],
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-            // ── Doctor summary card ───────────────────────────────────
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // ── Doctor summary ──────────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 color: AppColors.doctorRole.withOpacity(0.06),
                 borderRadius: AppRadius.lg,
-                border:
-                    Border.all(color: AppColors.doctorRole.withOpacity(0.2)),
+                border: Border.all(color: AppColors.doctorRole.withOpacity(0.2)),
               ),
               child: Row(children: [
                 CircleAvatar(
@@ -146,34 +131,69 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   backgroundColor: AppColors.doctorRole.withOpacity(0.15),
                   child: Text(
                     widget.doctor.fullName.isNotEmpty
-                        ? widget.doctor.fullName[0].toUpperCase()
-                        : 'D',
+                        ? widget.doctor.fullName[0].toUpperCase() : 'D',
                     style: AppTextStyles.titleLarge
                         .copyWith(color: AppColors.doctorRole),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Dr. ${widget.doctor.fullName}',
-                            style: AppTextStyles.titleLarge),
-                        Text(widget.doctor.specialization,
-                            style: AppTextStyles.caption),
-                      ]),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Dr. ${widget.doctor.fullName}',
+                        style: AppTextStyles.titleLarge),
+                    Text(widget.doctor.specialization,
+                        style: AppTextStyles.caption),
+                    if (widget.doctor.hospitalName != null)
+                      Text(widget.doctor.hospitalName!,
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.hospitalRole)),
+                  ]),
                 ),
-                Text(
-                  '₹${widget.doctor.consultationFee.toStringAsFixed(0)}',
-                  style: AppTextStyles.titleLarge
-                      .copyWith(color: AppColors.primary),
-                ),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text('₹${widget.doctor.consultationFee.toStringAsFixed(0)}',
+                      style: AppTextStyles.titleLarge
+                          .copyWith(color: AppColors.primary)),
+                  const Text('fee', style: AppTextStyles.caption),
+                ]),
               ]),
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Date picker ───────────────────────────────────────────
-            const _Label('Select Date'),
+            // ── Appointment type ────────────────────────────────────────────
+            const _SectionLabel('Appointment Type'),
+            const SizedBox(height: AppSpacing.sm),
+            Row(children: [
+              _TypeChip(
+                icon: Icons.person_pin_rounded,
+                label: 'In Person',
+                value: AppointmentType.inPerson,
+                selected: _appointmentType == AppointmentType.inPerson,
+                color: AppColors.primary,
+                onTap: () => setState(() => _appointmentType = AppointmentType.inPerson),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              _TypeChip(
+                icon: Icons.videocam_rounded,
+                label: 'Video Call',
+                value: AppointmentType.video,
+                selected: _appointmentType == AppointmentType.video,
+                color: AppColors.doctorRole,
+                onTap: () => setState(() => _appointmentType = AppointmentType.video),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              _TypeChip(
+                icon: Icons.phone_rounded,
+                label: 'Phone',
+                value: AppointmentType.phone,
+                selected: _appointmentType == AppointmentType.phone,
+                color: AppColors.accent,
+                onTap: () => setState(() => _appointmentType = AppointmentType.phone),
+              ),
+            ]),
+            const SizedBox(height: AppSpacing.lg),
+
+            // ── Date picker ─────────────────────────────────────────────────
+            const _SectionLabel('Select Date'),
             const SizedBox(height: AppSpacing.xs),
             GestureDetector(
               onTap: () async {
@@ -200,8 +220,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   const Icon(Icons.calendar_today_rounded,
                       size: 18, color: AppColors.primary),
                   const SizedBox(width: 10),
-                  Text(_displayDate(_selectedDate),
-                      style: AppTextStyles.bodyLarge),
+                  Text(
+                    '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                    style: AppTextStyles.bodyLarge,
+                  ),
                   const Spacer(),
                   const Icon(Icons.chevron_right_rounded,
                       color: AppColors.textHint),
@@ -210,79 +232,80 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Slot picker ───────────────────────────────────────────
-            const _Label('Select Time Slot'),
+            // ── Slot picker ─────────────────────────────────────────────────
+            const _SectionLabel('Select Time Slot'),
             const SizedBox(height: AppSpacing.xs),
             if (_loadingSlots)
               const Padding(
-                padding: EdgeInsets.all(AppSpacing.lg),
-                child: Center(
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppColors.primary)),
-              )
+                  padding: EdgeInsets.all(AppSpacing.lg),
+                  child: Center(child: LoadingWidget()))
             else if (_slotsData == null || _slotsData!.slots.isEmpty)
-              const _NoSlots(message: 'No available slots for this day')
+              _NoSlots(message: _slotsData == null
+                  ? 'No available slots for this day'
+                  : 'All slots booked. Try another date.')
             else
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _slotsData!.slots.map((s) {
-                  final isAvailable = s.isAvailable;
-                  final selected = _selectedSlot?.id == s.id;
+                  final available = s.isAvailable;
+                  final sel = _selectedSlot?.id == s.id;
                   return GestureDetector(
-                    onTap: isAvailable
-                        ? () => setState(() => _selectedSlot = s)
-                        : null,
+                    onTap: available ? () => setState(() => _selectedSlot = s) : null,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: !isAvailable
+                        color: !available
                             ? AppColors.inputFill
-                            : selected
+                            : sel
                                 ? AppColors.primary
                                 : AppColors.surface,
                         border: Border.all(
-                          color: selected
-                              ? AppColors.primary
-                              : AppColors.divider,
-                        ),
+                            color: sel ? AppColors.primary : AppColors.divider),
                         borderRadius: AppRadius.md,
                       ),
-                      child: Text(
-                        s.startTime,
-                        style: AppTextStyles.labelLarge.copyWith(
-                          color: !isAvailable
-                              ? AppColors.textHint
-                              : selected
-                                  ? Colors.white
-                                  : AppColors.textPrimary,
-                        ),
-                      ),
+                      child: Text(s.startTime,
+                          style: AppTextStyles.labelLarge.copyWith(
+                            color: !available
+                                ? AppColors.textHint
+                                : sel ? Colors.white : AppColors.textPrimary,
+                          )),
                     ),
                   );
                 }).toList(),
               ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Reason ────────────────────────────────────────────────
-            const _Label('Reason for Visit'),
+            // ── Reason ──────────────────────────────────────────────────────
+            const _SectionLabel('Reason for Visit'),
             const SizedBox(height: AppSpacing.xs),
             TextField(
               controller: _reasonCtrl,
               maxLines: 2,
               decoration: const InputDecoration(
-                  hintText: 'Brief reason (e.g. fever, checkup)'),
+                  hintText: 'Brief reason (e.g. fever, routine checkup)'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // ── Symptoms ─────────────────────────────────────────────────────
+            const _SectionLabel('Symptoms (optional)'),
+            const SizedBox(height: AppSpacing.xs),
+            TextField(
+              controller: _symptomsCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                  hintText: 'Describe symptoms so the doctor can prepare'),
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Payment note ──────────────────────────────────────────
+            // ── Payment note ─────────────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 color: AppColors.warning.withOpacity(0.08),
                 borderRadius: AppRadius.md,
+                border: Border.all(color: AppColors.warning.withOpacity(0.25)),
               ),
               child: Row(children: [
                 const Icon(Icons.info_outline_rounded,
@@ -290,41 +313,42 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Payment of ₹${widget.doctor.consultationFee.toStringAsFixed(0)} '
-                    'will be collected at the time of consultation.',
-                    style:
-                        AppTextStyles.caption.copyWith(color: AppColors.warning),
+                    'Fee of ₹${widget.doctor.consultationFee.toStringAsFixed(0)} '
+                    'is due at consultation. Appointment is pending doctor confirmation.',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.warning),
                   ),
                 ),
               ]),
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Confirm button ────────────────────────────────────────
+            // ── Confirm button ───────────────────────────────────────────────
             BlocBuilder<AppointmentCubit, AppointmentState>(
               builder: (context, state) {
                 final loading = state is AppointmentLoading;
-                // FIX: button is enabled as soon as a slot is selected,
-                // regardless of reason field (reason is optional)
                 final canBook = !loading && _selectedSlot != null;
                 return SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
                     onPressed: canBook ? _confirm : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: const RoundedRectangleBorder(
+                          borderRadius: AppRadius.md),
+                    ),
                     child: loading
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
+                            width: 20, height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
+                                strokeWidth: 2.5, color: Colors.white))
                         : Text(
                             _selectedSlot == null
-                                ? 'Select a time slot'
+                                ? 'Select a time slot to continue'
                                 : 'Confirm Booking',
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
+                                fontSize: 15, fontWeight: FontWeight.w700,
+                                color: Colors.white),
                           ),
                   ),
                 );
@@ -338,19 +362,60 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   }
 }
 
-class _Label extends StatelessWidget {
-  final String text;
-  const _Label(this.text);
+// ── Shared widgets ────────────────────────────────────────────────────────────
 
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
   @override
   Widget build(BuildContext context) =>
       Text(text, style: AppTextStyles.labelLarge);
 }
 
+class _TypeChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _TypeChip({
+    required this.icon, required this.label, required this.value,
+    required this.selected, required this.color, required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? color.withOpacity(0.1) : AppColors.inputFill,
+              borderRadius: AppRadius.md,
+              border: Border.all(
+                  color: selected ? color : Colors.transparent, width: 1.5),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: 20, color: selected ? color : AppColors.textHint),
+              const SizedBox(height: 3),
+              Text(label,
+                  style: AppTextStyles.caption.copyWith(
+                    color: selected ? color : AppColors.textSecondary,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                  textAlign: TextAlign.center),
+            ]),
+          ),
+        ),
+      );
+}
+
 class _NoSlots extends StatelessWidget {
   final String message;
   const _NoSlots({required this.message});
-
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -359,14 +424,10 @@ class _NoSlots extends StatelessWidget {
           borderRadius: AppRadius.md,
         ),
         child: Row(children: [
-          const Icon(Icons.event_busy_rounded,
-              color: AppColors.error, size: 18),
+          const Icon(Icons.event_busy_rounded, color: AppColors.error, size: 18),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(message,
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.error)),
-          ),
+          Expanded(child: Text(message,
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error))),
         ]),
       );
 }

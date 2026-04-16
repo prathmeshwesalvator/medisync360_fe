@@ -7,7 +7,7 @@ class AppConstants {
   // Physical device   → your machine IP
 
   // static const String _host = '0.0.0.0';
-  static const String _host = '10.114.36.53';
+  // static const String _host = '10.126.168.118';
 
   // static const String _base = 'http://$_host:8000/api';
   // static const String adminBase = 'http://$_host:8000/admin/';
@@ -43,8 +43,14 @@ class AppConstants {
   // ── Appointments ──────────────────────────────────────────────────────────
   static const String appointmentsEndpoint = '$_base/appointments/';
   static const String myAppointmentsEndpoint = '$_base/appointments/my/';
+  static const String myAppointmentStatsEndpoint =
+      '$_base/appointments/my/stats/';
   static const String doctorAppointmentsEndpoint =
       '$_base/appointments/doctor/mine/';
+  static const String doctorAppointmentStatsEndpoint =
+      '$_base/appointments/doctor/stats/';
+  static const String hospitalAppointmentsEndpoint =
+      '$_base/appointments/hospital/mine/';
 
   // ── SOS ───────────────────────────────────────────────────────────────────
   static const String sosEndpoint = '$_base/sos/';
@@ -67,6 +73,7 @@ class AppConstants {
 
   // ── Lab Reports ───────────────────────────────────────────────────────────
   static const String labReportsEndpoint = '$_base/lab-reports/';
+  static const String labReportsUrl = '$_base/lab-reports';
 
   // ── Notifications ─────────────────────────────────────────────────────────
   static const String notificationsEndpoint = '$_base/notifications/';
@@ -78,19 +85,26 @@ class AppConstants {
   static String doctorSlots(int id) => '$_base/doctors/$id/slots/';
   static String doctorReviews(int id) => '$_base/doctors/$id/reviews/';
   static String hospitalDetail(int id) => '$_base/hospitals/$id/';
+
   static String appointmentDetail(int id) => '$_base/appointments/$id/';
   static String cancelAppointment(int id) => '$_base/appointments/$id/cancel/';
   static String rescheduleAppointment(int id) =>
       '$_base/appointments/$id/reschedule/';
   static String payAppointment(int id) => '$_base/appointments/$id/pay/';
+  static String confirmAppointment(int id) =>
+      '$_base/appointments/$id/confirm/';
   static String completeAppointment(int id) =>
       '$_base/appointments/$id/complete/';
+  static String noShowAppointment(int id) => '$_base/appointments/$id/no-show/';
+  static String appointmentNotes(int id) => '$_base/appointments/$id/notes/';
+
   static String markNotificationRead(int id) =>
       '$_base/notifications/$id/read/';
+
   static String patientEHR(int patientId, String section) =>
       '$_base/ehr/patient/$patientId/$section/';
+
   static String labReportDetail(int id) => '$_base/lab-reports/$id/';
   static String patientLabReports(int patientId) =>
       '$_base/lab-reports/patient/$patientId/';
-  static const String labReportsUrl = '$_base/lab-reports';
 }

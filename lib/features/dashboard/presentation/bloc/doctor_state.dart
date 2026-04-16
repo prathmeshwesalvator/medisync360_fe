@@ -1,22 +1,14 @@
 part of 'doctor_cubit.dart';
 
-abstract class DoctorState {
-  const DoctorState();
-}
+abstract class DoctorState { const DoctorState(); }
 
-class DoctorInitial extends DoctorState {
-  const DoctorInitial();
-}
+class DoctorInitial extends DoctorState { const DoctorInitial(); }
 
-class DoctorLoading extends DoctorState {
-  const DoctorLoading();
-}
+class DoctorLoading extends DoctorState { const DoctorLoading(); }
 
-/// FIX: new state — emitted when only slots are loading so the doctor card
-/// in BookAppointmentScreen stays visible (doesn't get replaced by a spinner).
-class DoctorSlotsLoading extends DoctorState {
-  const DoctorSlotsLoading();
-}
+/// Separate loading state while fetching slots so the doctor
+/// detail data already on screen doesn't disappear.
+class DoctorSlotsLoading extends DoctorState { const DoctorSlotsLoading(); }
 
 class DoctorListLoaded extends DoctorState {
   final List<DoctorModel> doctors;
@@ -28,11 +20,10 @@ class DoctorDetailLoaded extends DoctorState {
   const DoctorDetailLoaded(this.doctor);
 }
 
-/// FIX: removed 'doctor' field — BookAppointmentScreen already has the doctor
-/// passed in as a constructor parameter; it doesn't need it from state.
 class DoctorSlotsLoaded extends DoctorState {
+  final DoctorModel doctor;
   final AvailableSlotsModel slots;
-  const DoctorSlotsLoaded({required this.slots});
+  const DoctorSlotsLoaded({required this.doctor, required this.slots});
 }
 
 class DoctorError extends DoctorState {

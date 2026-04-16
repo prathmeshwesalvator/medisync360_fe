@@ -15,7 +15,7 @@ class DoctorRepository {
         'Authorization': 'Bearer $token',
       };
 
-  Map<String, String> get _open => {'Content-Type': 'application/json'};
+  static const Map<String, String> _open = {'Content-Type': 'application/json'};
 
   Map<String, dynamic> _parse(http.Response r) {
     final b = jsonDecode(r.body) as Map<String, dynamic>;
@@ -38,8 +38,7 @@ class DoctorRepository {
     });
     final r = _parse(await _client.get(uri, headers: _open));
     final data = r['data'];
-    // Backend wraps list in {count, results}
-    final list = data is Map ? (data['results'] as List? ?? []) : (data as List? ?? []);
+    final list = data is List ? data : (data['results'] as List? ?? []);
     return list.map((d) => DoctorModel.fromJson(d)).toList();
   }
 
@@ -49,25 +48,17 @@ class DoctorRepository {
     return DoctorModel.fromJson(r['data']);
   }
 
-  Future<AvailableSlotsModel> getAvailableSlots(
-      int doctorId, String date) async {
+  /// Backend sends a flat list of TimeSlot objects via TimeSlotSerializer.
+  /// DoctorAvailableSlotsView returns success_response(data=TimeSlotSerializer(slots, many=True).data)
+  Future<AvailableSlotsModel> getAvailableSlots(int doctorId, String date) async {
     final uri = Uri.parse('$_base$doctorId/slots/')
         .replace(queryParameters: {'date': date});
     final r = _parse(await _client.get(uri, headers: _open));
-
-    // FIX: Backend returns a flat list of TimeSlot objects inside data[],
-    // NOT a structured object { date, slots, booked_times, is_on_leave }.
-    // Build AvailableSlotsModel from the list using the named constructor.
-    final data = r['data'];
-    if (data is List) {
-      return AvailableSlotsModel.fromList(date, data);
+    final raw = r['data'];
+    if (raw is List) {
+      return AvailableSlotsModel.fromList(raw, date: date);
     }
-    // Fallback: if backend ever wraps it, handle gracefully
-    if (data is Map) {
-      final list = data['results'] ?? data['slots'] ?? [];
-      return AvailableSlotsModel.fromList(date, list as List);
-    }
-    return AvailableSlotsModel.fromList(date, []);
+    return AvailableSlotsModel.fromJson(raw as Map<String, dynamic>);
   }
 
   Future<void> submitReview(

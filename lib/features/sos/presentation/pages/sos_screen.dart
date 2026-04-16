@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import 'package:medisync_app/features/sos/data/model/sos_model.dart';
 import 'package:medisync_app/features/sos/data/repository/sos_repository.dart';
 import 'package:medisync_app/features/sos/presentation/bloc/sos_cubit.dart';
@@ -67,7 +68,7 @@ class _SosFlowScreenState extends State<_SosFlowScreen> {
         }
         if (state is SosTriggered || state is SosDetailLoaded) {
           final sos = state is SosTriggered
-              ? (state as SosTriggered).sos
+              ? (state).sos
               : (state as SosDetailLoaded).sos;
           return _SosActiveScreen(sos: sos);
         }
@@ -148,7 +149,7 @@ class _SosTriggerScreenState extends State<_SosTriggerScreen>
         lat = pos.latitude;
         lon = pos.longitude;
       }
-    } catch (_) { /* continue with 0,0 */ }
+    } catch (_) {/* continue with 0,0 */}
 
     setState(() => _locating = false);
 
@@ -210,8 +211,7 @@ class _SosTriggerScreenState extends State<_SosTriggerScreen>
                   ),
                   child: Center(
                     child: loading
-                        ? const CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 3)
+                        ? const LoadingWidget()
                         : const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -312,8 +312,7 @@ class _SosTriggerScreenState extends State<_SosTriggerScreen>
                 const Expanded(
                   child: Text('Add Medical Info (optional)',
                       style: TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w600)),
+                          color: Colors.white70, fontWeight: FontWeight.w600)),
                 ),
                 Icon(
                   _showMedInfo
@@ -330,20 +329,20 @@ class _SosTriggerScreenState extends State<_SosTriggerScreen>
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                _darkField(_bloodCtrl, 'Blood Group', 'e.g. B+'),
-                const SizedBox(height: AppSpacing.sm),
-                _darkField(_allergiesCtrl, 'Allergies', 'e.g. Penicillin'),
-                const SizedBox(height: AppSpacing.sm),
-                _darkField(_medicationsCtrl, 'Current Medications',
-                    'e.g. Metformin 500mg'),
-                const SizedBox(height: AppSpacing.sm),
-                _darkField(
-                    _ecNameCtrl, 'Emergency Contact Name', 'Full name'),
-                const SizedBox(height: AppSpacing.sm),
-                _darkField(_ecPhoneCtrl, 'Emergency Contact Phone',
-                    '+91 9999999999',
-                    keyboardType: TextInputType.phone),
-              ]),
+                    _darkField(_bloodCtrl, 'Blood Group', 'e.g. B+'),
+                    const SizedBox(height: AppSpacing.sm),
+                    _darkField(_allergiesCtrl, 'Allergies', 'e.g. Penicillin'),
+                    const SizedBox(height: AppSpacing.sm),
+                    _darkField(_medicationsCtrl, 'Current Medications',
+                        'e.g. Metformin 500mg'),
+                    const SizedBox(height: AppSpacing.sm),
+                    _darkField(
+                        _ecNameCtrl, 'Emergency Contact Name', 'Full name'),
+                    const SizedBox(height: AppSpacing.sm),
+                    _darkField(_ecPhoneCtrl, 'Emergency Contact Phone',
+                        '+91 9999999999',
+                        keyboardType: TextInputType.phone),
+                  ]),
             ),
           ],
           const SizedBox(height: AppSpacing.xl),
@@ -370,7 +369,9 @@ class _SosTriggerScreenState extends State<_SosTriggerScreen>
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label,
           style: const TextStyle(
-              color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600)),
       const SizedBox(height: 4),
       TextField(
         controller: ctrl,
@@ -438,11 +439,16 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
 
   Color get _statusColor {
     switch (_sos.status) {
-      case SosStatus.active:   return AppColors.error;
-      case SosStatus.accepted: return AppColors.warning;
-      case SosStatus.enroute:  return const Color(0xFF3B82F6);
-      case SosStatus.arrived:  return AppColors.accent;
-      default:                 return AppColors.textSecondary;
+      case SosStatus.active:
+        return AppColors.error;
+      case SosStatus.accepted:
+        return AppColors.warning;
+      case SosStatus.enroute:
+        return const Color(0xFF3B82F6);
+      case SosStatus.arrived:
+        return AppColors.accent;
+      default:
+        return AppColors.textSecondary;
     }
   }
 
@@ -464,11 +470,16 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
 
   IconData get _statusIcon {
     switch (_sos.status) {
-      case SosStatus.active:   return Icons.emergency_rounded;
-      case SosStatus.accepted: return Icons.check_circle_rounded;
-      case SosStatus.enroute:  return Icons.local_shipping_rounded;
-      case SosStatus.arrived:  return Icons.where_to_vote_rounded;
-      default:                 return Icons.info_rounded;
+      case SosStatus.active:
+        return Icons.emergency_rounded;
+      case SosStatus.accepted:
+        return Icons.check_circle_rounded;
+      case SosStatus.enroute:
+        return Icons.local_shipping_rounded;
+      case SosStatus.arrived:
+        return Icons.where_to_vote_rounded;
+      default:
+        return Icons.info_rounded;
     }
   }
 
@@ -486,8 +497,8 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
           foregroundColor: Colors.white,
           automaticallyImplyLeading: false,
           title: const Text('SOS Active',
-              style: TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.w700)),
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           actions: [
             if (_sos.isLive)
               TextButton.icon(
@@ -523,8 +534,7 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
                         height: 1.5),
                   ),
                 ),
-                if (_sos.isActive)
-                  _PulsingDot(color: _statusColor),
+                if (_sos.isActive) _PulsingDot(color: _statusColor),
               ]),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -602,23 +612,23 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text('Responding Hospital',
-                          style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600)),
-                      Text(
-                        _sos.respondingHospitalName!,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700),
-                      ),
-                      if (_sos.ambulanceNumber.isNotEmpty)
-                        Text('Ambulance #${_sos.ambulanceNumber}',
+                          const Text('Responding Hospital',
+                              style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600)),
+                          Text(
+                            _sos.respondingHospitalName!,
                             style: const TextStyle(
-                                color: Colors.white60, fontSize: 12)),
-                    ]),
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700),
+                          ),
+                          if (_sos.ambulanceNumber.isNotEmpty)
+                            Text('Ambulance #${_sos.ambulanceNumber}',
+                                style: const TextStyle(
+                                    color: Colors.white60, fontSize: 12)),
+                        ]),
                   ),
                   if (_sos.etaMinutes != null)
                     Column(children: [
@@ -628,8 +638,8 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
                               fontSize: 26,
                               fontWeight: FontWeight.w800)),
                       const Text('min',
-                          style: TextStyle(
-                              color: Colors.white54, fontSize: 11)),
+                          style:
+                              TextStyle(color: Colors.white54, fontSize: 11)),
                     ]),
                 ]),
               ),
@@ -660,7 +670,8 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
             if (_sos.emergencyContactPhone.isNotEmpty)
               _ActionButton(
                 icon: Icons.contact_phone_rounded,
-                label: 'Call ${_sos.emergencyContactName.isNotEmpty ? _sos.emergencyContactName : "Emergency Contact"}',
+                label:
+                    'Call ${_sos.emergencyContactName.isNotEmpty ? _sos.emergencyContactName : "Emergency Contact"}',
                 color: AppColors.warning,
                 onTap: () =>
                     launchUrl(Uri.parse('tel:${_sos.emergencyContactPhone}')),
@@ -680,9 +691,8 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
               const SizedBox(height: AppSpacing.sm),
               _DarkCard(
                 child: Column(
-                  children: _sos.statusLogs
-                      .map((l) => _LogRow(log: l))
-                      .toList(),
+                  children:
+                      _sos.statusLogs.map((l) => _LogRow(log: l)).toList(),
                 ),
               ),
             ],
@@ -694,8 +704,7 @@ class _SosActiveScreenState extends State<_SosActiveScreen> {
   }
 
   void _shareLocation() {
-    final url =
-        'https://maps.google.com/?q=${_sos.latitude},${_sos.longitude}';
+    final url = 'https://maps.google.com/?q=${_sos.latitude},${_sos.longitude}';
     launchUrl(Uri.parse(url));
   }
 
@@ -744,11 +753,16 @@ class _SosProgressStepper extends StatelessWidget {
 
   int get _currentIndex {
     switch (status) {
-      case SosStatus.active:   return 0;
-      case SosStatus.accepted: return 1;
-      case SosStatus.enroute:  return 2;
-      case SosStatus.arrived:  return 3;
-      default:                 return 0;
+      case SosStatus.active:
+        return 0;
+      case SosStatus.accepted:
+        return 1;
+      case SosStatus.enroute:
+        return 2;
+      case SosStatus.arrived:
+        return 3;
+      default:
+        return 0;
     }
   }
 
@@ -757,8 +771,8 @@ class _SosProgressStepper extends StatelessWidget {
     final idx = _currentIndex;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A1A1A),
         borderRadius: AppRadius.lg,
       ),
       child: Row(
@@ -783,8 +797,7 @@ class _SosProgressStepper extends StatelessWidget {
                         : null,
                   ),
                   child: Icon(step.$3,
-                      size: 18,
-                      color: done ? Colors.white : Colors.white24),
+                      size: 18, color: done ? Colors.white : Colors.white24),
                 ),
                 const SizedBox(height: 4),
                 Text(step.$2,
@@ -847,7 +860,9 @@ class _SeverityChip extends StatelessWidget {
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: selected ? AppColors.error.withOpacity(0.2) : Colors.transparent,
+              color: selected
+                  ? AppColors.error.withOpacity(0.2)
+                  : Colors.transparent,
               border: Border.all(
                   color: selected ? AppColors.error : Colors.white24),
               borderRadius: AppRadius.md,
@@ -884,15 +899,19 @@ class _PulsingDotState extends State<_PulsingDot>
   }
 
   @override
-  void dispose() { _c.dispose(); super.dispose(); }
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => FadeTransition(
         opacity: Tween<double>(begin: 0.3, end: 1).animate(_c),
         child: Container(
-          width: 12, height: 12,
-          decoration: BoxDecoration(
-              color: widget.color, shape: BoxShape.circle),
+          width: 12,
+          height: 12,
+          decoration:
+              BoxDecoration(color: widget.color, shape: BoxShape.circle),
         ),
       );
 }
@@ -901,8 +920,7 @@ class _MapPin extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String label;
-  const _MapPin(
-      {required this.icon, required this.color, required this.label});
+  const _MapPin({required this.icon, required this.color, required this.label});
 
   @override
   Widget build(BuildContext context) => Column(
@@ -920,8 +938,7 @@ class _MapPin extends StatelessWidget {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-                color: color, borderRadius: AppRadius.sm),
+            decoration: BoxDecoration(color: color, borderRadius: AppRadius.sm),
             child: Text(label,
                 style: const TextStyle(
                     color: Colors.white,
@@ -958,9 +975,7 @@ class _ActionButton extends StatelessWidget {
             const SizedBox(width: 6),
             Text(label,
                 style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13)),
+                    color: color, fontWeight: FontWeight.w700, fontSize: 13)),
           ]),
         ),
       );
@@ -980,9 +995,8 @@ class _LogRow extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
                 log.fromStatus.isNotEmpty
                     ? '${log.fromStatus} → ${log.toStatus}'
@@ -994,8 +1008,8 @@ class _LogRow extends StatelessWidget {
               ),
               if (log.note.isNotEmpty)
                 Text(log.note,
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 11)),
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 11)),
             ]),
           ),
           Text(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import '../../data/model/lab_report_model.dart';
 import '../bloc/lab_report_cubit.dart';
 import '../bloc/lab_report_state.dart';
@@ -121,9 +122,9 @@ class _OverviewTab extends StatelessWidget {
         children: [
           _SectionCard(
             title: '🧬 Summary',
-            child: Text(result.summary, style: const TextStyle(fontSize: 15, height: 1.5)),
+            child: Text(result.summary,
+                style: const TextStyle(fontSize: 15, height: 1.5)),
           ),
-
           if (result.criticalAlerts.isNotEmpty) ...[
             const SizedBox(height: 12),
             _SectionCard(
@@ -137,7 +138,6 @@ class _OverviewTab extends StatelessWidget {
               ),
             ),
           ],
-
           if (result.abnormalFlags.isNotEmpty) ...[
             const SizedBox(height: 12),
             _SectionCard(
@@ -155,7 +155,6 @@ class _OverviewTab extends StatelessWidget {
               ),
             ),
           ],
-
           if (result.positiveFindings.isNotEmpty) ...[
             const SizedBox(height: 12),
             _SectionCard(
@@ -169,7 +168,6 @@ class _OverviewTab extends StatelessWidget {
               ),
             ),
           ],
-
           const SizedBox(height: 12),
           _SectionCard(
             title: '🩺 Doctor Visit',
@@ -183,24 +181,22 @@ class _OverviewTab extends StatelessWidget {
               ],
             ),
           ),
-
           if (result.healthRisks.isNotEmpty) ...[
             const SizedBox(height: 12),
             _SectionCard(
               title: '📊 Health Risks',
               child: Column(
-                children: result.healthRisks.map((r) => _RiskTile(risk: r)).toList(),
+                children:
+                    result.healthRisks.map((r) => _RiskTile(risk: r)).toList(),
               ),
             ),
           ],
-
           const SizedBox(height: 12),
           _SectionCard(
             title: '📅 Trend Advice',
             child: Text(result.trendAdvice,
                 style: const TextStyle(fontSize: 14, height: 1.5)),
           ),
-
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -209,8 +205,8 @@ class _OverviewTab extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text('ℹ️ ${result.disclaimer}',
-                style:
-                    TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4)),
+                style: TextStyle(
+                    fontSize: 12, color: Colors.grey.shade700, height: 1.4)),
           ),
           const SizedBox(height: 20),
         ],
@@ -256,7 +252,8 @@ class _RecommendationsTab extends StatelessWidget {
               title: '🥗 Dietary Recommendations',
               child: Column(
                 children: result.dietaryRecommendations
-                    .map((r) => _RecommendationTile(rec: r, icon: Icons.restaurant))
+                    .map((r) =>
+                        _RecommendationTile(rec: r, icon: Icons.restaurant))
                     .toList(),
               ),
             ),
@@ -266,7 +263,8 @@ class _RecommendationsTab extends StatelessWidget {
               title: '🏃 Lifestyle Recommendations',
               child: Column(
                 children: result.lifestyleRecommendations
-                    .map((r) => _RecommendationTile(rec: r, icon: Icons.fitness_center))
+                    .map((r) =>
+                        _RecommendationTile(rec: r, icon: Icons.fitness_center))
                     .toList(),
               ),
             ),
@@ -340,7 +338,7 @@ class _AskTab extends StatelessWidget {
         if (isAsking)
           const Padding(
             padding: EdgeInsets.all(8),
-            child: CircularProgressIndicator(),
+            child: LoadingWidget(),
           ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -396,13 +394,16 @@ class _SectionCard extends StatelessWidget {
         color: color ?? Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor ?? Colors.grey.shade200),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),
           child,
         ],
@@ -465,7 +466,8 @@ class _ParameterTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(param.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -474,13 +476,18 @@ class _ParameterTile extends StatelessWidget {
                 ),
                 child: Text(param.status.toUpperCase(),
                     style: const TextStyle(
-                        color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold)),
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text('${param.value} ${param.unit}',
-              style: TextStyle(fontSize: 18, color: _statusColor, fontWeight: FontWeight.w600)),
+              style: TextStyle(
+                  fontSize: 18,
+                  color: _statusColor,
+                  fontWeight: FontWeight.w600)),
           Text('Reference: ${param.referenceRange}',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           const SizedBox(height: 6),
@@ -498,9 +505,12 @@ class _RiskTile extends StatelessWidget {
 
   Color get _riskColor {
     switch (risk.riskLevel) {
-      case 'high': return Colors.red;
-      case 'moderate': return Colors.orange;
-      default: return Colors.green;
+      case 'high':
+        return Colors.red;
+      case 'moderate':
+        return Colors.orange;
+      default:
+        return Colors.green;
     }
   }
 
@@ -512,16 +522,19 @@ class _RiskTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 8, height: 8,
+            width: 8,
+            height: 8,
             margin: const EdgeInsets.only(top: 5, right: 8),
-            decoration: BoxDecoration(color: _riskColor, shape: BoxShape.circle),
+            decoration:
+                BoxDecoration(color: _riskColor, shape: BoxShape.circle),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(risk.condition,
-                    style: TextStyle(fontWeight: FontWeight.w600, color: _riskColor)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, color: _riskColor)),
                 Text(risk.explanation,
                     style: const TextStyle(fontSize: 13, height: 1.4)),
               ],
@@ -552,9 +565,11 @@ class _RecommendationTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(rec.recommendation,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
                 Text(rec.reason,
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                    style:
+                        TextStyle(fontSize: 13, color: Colors.grey.shade600)),
               ],
             ),
           ),
@@ -570,26 +585,35 @@ class _UrgencyChip extends StatelessWidget {
 
   Color get _color {
     switch (urgency) {
-      case 'immediate': return Colors.red;
-      case 'within_week': return Colors.orange;
-      case 'within_month': return Colors.blue;
-      default: return Colors.green;
+      case 'immediate':
+        return Colors.red;
+      case 'within_week':
+        return Colors.orange;
+      case 'within_month':
+        return Colors.blue;
+      default:
+        return Colors.green;
     }
   }
 
   String get _label {
     switch (urgency) {
-      case 'immediate': return '🚨 See a doctor immediately';
-      case 'within_week': return '⚠️ Visit within a week';
-      case 'within_month': return '📅 Visit within a month';
-      default: return '✅ Routine checkup';
+      case 'immediate':
+        return '🚨 See a doctor immediately';
+      case 'within_week':
+        return '⚠️ Visit within a week';
+      case 'within_month':
+        return '📅 Visit within a month';
+      default:
+        return '✅ Routine checkup';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Chip(
-      label: Text(_label, style: const TextStyle(color: Colors.white, fontSize: 13)),
+      label: Text(_label,
+          style: const TextStyle(color: Colors.white, fontSize: 13)),
       backgroundColor: _color,
     );
   }
@@ -605,7 +629,8 @@ class _ChatBubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: isUser ? Colors.blue.shade700 : Colors.grey.shade100,

@@ -10,11 +10,10 @@ class DoctorCubit extends Cubit<DoctorState> {
   final DoctorRepository _repo;
   final TokenStorage _storage;
 
-  DoctorCubit(this._repo, this._storage) : super(const DoctorInitial());
+  /// Cached doctor so slot-loading doesn't require a re-fetch of the full profile.
+  DoctorModel? _lastDoctor;
 
-  // Cache the last successfully loaded doctor so DoctorDetailScreen can keep
-  // rendering when state transitions to DoctorSlotsLoading / DoctorSlotsLoaded.
-  DoctorModel? lastDoctor;
+  DoctorCubit(this._repo, this._storage) : super(const DoctorInitial());
 
   Future<void> loadDoctors({
     String query = '',
@@ -24,10 +23,7 @@ class DoctorCubit extends Cubit<DoctorState> {
     emit(const DoctorLoading());
     try {
       final list = await _repo.getDoctors(
-        query: query,
-        specialization: specialization,
-        city: city,
-      );
+          query: query, specialization: specialization, city: city);
       emit(DoctorListLoaded(list));
     } on ApiException catch (e) {
       emit(DoctorError(e.message));
@@ -40,7 +36,7 @@ class DoctorCubit extends Cubit<DoctorState> {
     emit(const DoctorLoading());
     try {
       final doctor = await _repo.getDoctorDetail(id);
-      lastDoctor = doctor; // cache for use by detail screen during slot loading
+      _lastDoctor = doctor;
       emit(DoctorDetailLoaded(doctor));
     } on ApiException catch (e) {
       emit(DoctorError(e.message));
@@ -49,13 +45,21 @@ class DoctorCubit extends Cubit<DoctorState> {
     }
   }
 
-  /// Emits DoctorSlotsLoading (not DoctorLoading) so DoctorDetailScreen
-  /// stays visible while slots are being fetched.
   Future<void> loadSlots(int doctorId, String date) async {
+    // Emit DoctorSlotsLoading (not DoctorLoading) so the book screen
+    // knows only slots are refreshing, not the entire doctor profile.
     emit(const DoctorSlotsLoading());
     try {
+      // Reuse cached doctor if same ID; otherwise fetch
+      DoctorModel doctor;
+      if (_lastDoctor != null && _lastDoctor!.id == doctorId) {
+        doctor = _lastDoctor!;
+      } else {
+        doctor = await _repo.getDoctorDetail(doctorId);
+        _lastDoctor = doctor;
+      }
       final slots = await _repo.getAvailableSlots(doctorId, date);
-      emit(DoctorSlotsLoaded(slots: slots));
+      emit(DoctorSlotsLoaded(doctor: doctor, slots: slots));
     } on ApiException catch (e) {
       emit(DoctorError(e.message));
     } catch (_) {
@@ -78,4 +82,6 @@ class DoctorCubit extends Cubit<DoctorState> {
       emit(const DoctorError('Could not submit review.'));
     }
   }
+
+  DoctorModel? get lastDoctor => _lastDoctor;
 }

@@ -11,10 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.medisync360_fe"
-
-        // IMPORTANT for WebView and most plugins
         minSdk = flutter.minSdkVersion
-
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -31,10 +28,18 @@ android {
 
     buildTypes {
         release {
-            // Using debug signing for now
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+/* ADD THIS BLOCK HERE */
+dependencies {
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+    implementation("com.google.mlkit:text-recognition-devanagari:16.0.1")
+    implementation("com.google.mlkit:text-recognition-japanese:16.0.1")
+    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
 }
 
 flutter {

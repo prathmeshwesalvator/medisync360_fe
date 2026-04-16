@@ -23,7 +23,6 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // FIX: listen for logout at top level — navigation handled here, not in sub-tabs
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
         if (state is AuthLoggedOut || state is AuthUnauthenticated) {
@@ -39,20 +38,96 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
             _DoctorProfileTab(),
           ],
         ),
-        bottomNavigationBar: BottomNavigationBar(
+        bottomNavigationBar: _DoctorBottomNav(
           currentIndex: _currentIndex,
           onTap: (i) => setState(() => _currentIndex = i),
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppColors.doctorRole,
-          unselectedItemColor: AppColors.textHint,
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.home_rounded), label: 'Home'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.calendar_today_rounded), label: 'Appointments'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.person_rounded), label: 'Profile'),
-          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Custom bottom nav (matches user dashboard style) ─────────────────────────
+
+class _DoctorBottomNav extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  const _DoctorBottomNav(
+      {required this.currentIndex, required this.onTap});
+
+  static const _items = [
+    (Icons.home_rounded,          Icons.home_outlined,              'Home'),
+    (Icons.calendar_today_rounded, Icons.calendar_today_outlined,   'Appointments'),
+    (Icons.person_rounded,         Icons.person_outlined,            'Profile'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.07),
+              blurRadius: 20,
+              offset: const Offset(0, -4)),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 62,
+          child: Row(
+            children: _items.asMap().entries.map((e) {
+              final i = e.key;
+              final item = e.value;
+              final selected = i == currentIndex;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.doctorRole.withOpacity(0.1)
+                              : Colors.transparent,
+                          borderRadius: AppRadius.full,
+                        ),
+                        child: Icon(
+                          selected ? item.$1 : item.$2,
+                          color: selected
+                              ? AppColors.doctorRole
+                              : AppColors.textHint,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 220),
+                        style: AppTextStyles.caption.copyWith(
+                          color: selected
+                              ? AppColors.doctorRole
+                              : AppColors.textHint,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                          fontSize: 10,
+                        ),
+                        child: Text(item.$3),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
@@ -60,6 +135,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
 }
 
 // ── Home Tab ──────────────────────────────────────────────────────────────────
+
 class _DoctorHomeTab extends StatefulWidget {
   const _DoctorHomeTab();
 
@@ -82,167 +158,272 @@ class _DoctorHomeTabState extends State<_DoctorHomeTab> {
     final profile = user?.doctorProfile;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: MediSyncAppBar(
         title: 'MediSync 360',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const NotificationScreen())),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(
+                        builder: (_) => const NotificationScreen())),
+              ),
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                      color: AppColors.error, shape: BoxShape.circle),
+                ),
+              ),
+            ],
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () =>
             context.read<AppointmentCubit>().loadDoctorAppointments(),
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-            // Welcome banner
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.doctorRole, Color(0xFF5B21B6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: AppRadius.lg,
-              ),
-              child: Row(children: [
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Welcome, Dr. $name',
-                            style: AppTextStyles.titleLarge
-                                .copyWith(color: Colors.white)),
-                        const SizedBox(height: 4),
-                        Text(
-                          profile?.specialization ?? '',
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(color: Colors.white70),
-                        ),
-                      ]),
-                ),
-                const Icon(Icons.medical_services_rounded,
-                    color: Colors.white30, size: 48),
-              ]),
-            ),
-            const SizedBox(height: AppSpacing.lg),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Welcome banner — full bleed ──────────────────────────
+              _WelcomeBanner(name: name, profile: profile),
 
-            // Today's stats
-            BlocBuilder<AppointmentCubit, AppointmentState>(
-              builder: (context, state) {
-                final appts = state is AppointmentListLoaded
-                    ? state.appointments
-                    : <dynamic>[];
-                final pending =
-                    appts.where((a) => a.status == 'pending').length;
-                final confirmed =
-                    appts.where((a) => a.status == 'confirmed').length;
-                final completed =
-                    appts.where((a) => a.status == 'completed').length;
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.lg, AppSpacing.md, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Stats grid ─────────────────────────────────────
+                    BlocBuilder<AppointmentCubit, AppointmentState>(
+                      builder: (context, state) {
+                        final appts = state is AppointmentListLoaded
+                            ? state.appointments
+                            : <dynamic>[];
+                        final pending =
+                            appts.where((a) => a.status == 'pending').length;
+                        final confirmed =
+                            appts.where((a) => a.status == 'confirmed').length;
+                        final completed =
+                            appts.where((a) => a.status == 'completed').length;
 
-                return Column(children: [
-                  const Text("Today's Overview",
-                      style: AppTextStyles.headlineMedium),
-                  const SizedBox(height: AppSpacing.md),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: AppSpacing.sm,
-                    crossAxisSpacing: AppSpacing.sm,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.3,
-                    children: [
-                      StatCard(
-                        label: 'Total Today',
-                        value: '${appts.length}',
-                        icon: Icons.calendar_today_rounded,
-                        color: AppColors.doctorRole,
-                      ),
-                      StatCard(
-                        label: 'Pending',
-                        value: '$pending',
-                        icon: Icons.pending_actions_rounded,
-                        color: AppColors.warning,
-                      ),
-                      StatCard(
-                        label: 'Confirmed',
-                        value: '$confirmed',
-                        icon: Icons.check_circle_outline_rounded,
-                        color: AppColors.accent,
-                      ),
-                      StatCard(
-                        label: 'Completed',
-                        value: '$completed',
-                        icon: Icons.task_alt_rounded,
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ]);
-              },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Today's schedule
-            const Text("Today's Schedule", style: AppTextStyles.headlineMedium),
-            const SizedBox(height: AppSpacing.md),
-
-            BlocBuilder<AppointmentCubit, AppointmentState>(
-              builder: (context, state) {
-                if (state is AppointmentLoading) {
-                  return const LoadingWidget();
-                }
-                if (state is AppointmentListLoaded) {
-                  if (state.appointments.isEmpty) {
-                    return const EmptyStateWidget(
-                      title: 'No appointments today',
-                      subtitle: 'Your schedule is clear',
-                      icon: Icons.event_available_rounded,
-                    );
-                  }
-                  return Column(
-                    children: state.appointments
-                        .take(5)
-                        .map((a) => AppointmentCard(
-                              appointment: a,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => BlocProvider.value(
-                                    value: context.read<AppointmentCubit>(),
-                                    child:
-                                        AppointmentDetailScreen(appointment: a),
-                                  ),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _SectionLabel("Today's Overview"),
+                            const SizedBox(height: AppSpacing.md),
+                            GridView.count(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: AppSpacing.sm,
+                              crossAxisSpacing: AppSpacing.sm,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              childAspectRatio: 1.3,
+                              children: [
+                                StatCard(
+                                  label: 'Total Today',
+                                  value: '${appts.length}',
+                                  icon: Icons.calendar_today_rounded,
+                                  color: AppColors.doctorRole,
                                 ),
-                              ),
-                            ))
-                        .toList(),
-                  );
-                }
-                return const EmptyStateWidget(
-                  title: 'No appointments today',
-                  subtitle: 'Your schedule is clear',
-                  icon: Icons.event_available_rounded,
-                );
-              },
-            ),
-          ],
+                                StatCard(
+                                  label: 'Pending',
+                                  value: '$pending',
+                                  icon: Icons.pending_actions_rounded,
+                                  color: AppColors.warning,
+                                ),
+                                StatCard(
+                                  label: 'Confirmed',
+                                  value: '$confirmed',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  color: AppColors.accent,
+                                ),
+                                StatCard(
+                                  label: 'Completed',
+                                  value: '$completed',
+                                  icon: Icons.task_alt_rounded,
+                                  color: AppColors.primary,
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Schedule ───────────────────────────────────────
+                    const _SectionLabel("Today's Schedule"),
+                    const SizedBox(height: AppSpacing.md),
+
+                    BlocBuilder<AppointmentCubit, AppointmentState>(
+                      builder: (context, state) {
+                        if (state is AppointmentLoading) {
+                          return const LoadingWidget();
+                        }
+                        if (state is AppointmentListLoaded) {
+                          if (state.appointments.isEmpty) {
+                            return const EmptyStateWidget(
+                              title: 'No appointments today',
+                              subtitle: 'Your schedule is clear',
+                              icon: Icons.event_available_rounded,
+                            );
+                          }
+                          return Column(
+                            children: state.appointments
+                                .take(5)
+                                .map((a) => AppointmentCard(
+                                      appointment: a,
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => BlocProvider.value(
+                                            value: context
+                                                .read<AppointmentCubit>(),
+                                            child: AppointmentDetailScreen(
+                                                appointment: a),
+                                          ),
+                                        ),
+                                      ),
+                                    ))
+                                .toList(),
+                          );
+                        }
+                        return const EmptyStateWidget(
+                          title: 'No appointments today',
+                          subtitle: 'Your schedule is clear',
+                          icon: Icons.event_available_rounded,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+// ─── Welcome banner ───────────────────────────────────────────────────────────
+
+class _WelcomeBanner extends StatelessWidget {
+  final String name;
+  final dynamic profile;
+  const _WelcomeBanner({required this.name, required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF5B21B6), AppColors.doctorRole, Color(0xFF7C3AED)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Welcome back 👋',
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(color: Colors.white70)),
+              const SizedBox(height: 2),
+              Text('Dr. $name',
+                  style: AppTextStyles.displayMedium
+                      .copyWith(color: Colors.white, height: 1.1)),
+              if (profile?.specialization != null &&
+                  (profile!.specialization as String).isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: AppRadius.full,
+                  ),
+                  child: Text(
+                    profile!.specialization as String,
+                    style: AppTextStyles.caption
+                        .copyWith(color: Colors.white),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        // Doctor initials avatar
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.18),
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: Colors.white.withOpacity(0.3), width: 1.5),
+          ),
+          child: Center(
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'D',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─── Section label with accent bar ───────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: const BoxDecoration(
+              color: AppColors.doctorRole, borderRadius: AppRadius.full),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(text, style: AppTextStyles.headlineMedium),
+      ]);
+}
+
 // ── Appointments Tab ──────────────────────────────────────────────────────────
+
 class _DoctorAppointmentsTab extends StatefulWidget {
   const _DoctorAppointmentsTab();
 
   @override
-  State<_DoctorAppointmentsTab> createState() => _DoctorAppointmentsTabState();
+  State<_DoctorAppointmentsTab> createState() =>
+      _DoctorAppointmentsTabState();
 }
 
 class _DoctorAppointmentsTabState extends State<_DoctorAppointmentsTab>
@@ -282,8 +463,41 @@ class _DoctorAppointmentsTabState extends State<_DoctorAppointmentsTab>
         title: const Text('Appointments',
             style: TextStyle(fontWeight: FontWeight.w700)),
         actions: [
+          // Date filter chip
+          if (_date.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _date = '');
+                  context
+                      .read<AppointmentCubit>()
+                      .loadDoctorAppointments();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.doctorRole.withOpacity(0.1),
+                    borderRadius: AppRadius.full,
+                    border: Border.all(
+                        color: AppColors.doctorRole.withOpacity(0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_date,
+                        style: AppTextStyles.caption.copyWith(
+                            color: AppColors.doctorRole,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.close_rounded,
+                        size: 12, color: AppColors.doctorRole),
+                  ]),
+                ),
+              ),
+            ),
           IconButton(
-            icon: const Icon(Icons.filter_list_rounded),
+            icon: const Icon(Icons.calendar_month_rounded),
+            tooltip: 'Filter by date',
             onPressed: _pickDate,
           ),
         ],
@@ -293,13 +507,18 @@ class _DoctorAppointmentsTabState extends State<_DoctorAppointmentsTab>
           labelColor: AppColors.doctorRole,
           unselectedLabelColor: AppColors.textSecondary,
           indicatorColor: AppColors.doctorRole,
+          indicatorWeight: 2.5,
+          labelStyle: const TextStyle(
+              fontWeight: FontWeight.w700, fontSize: 13),
+          unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w400, fontSize: 13),
           tabs: _tabs.map((t) => Tab(text: t.$1)).toList(),
           onTap: (i) => context
               .read<AppointmentCubit>()
-              .loadDoctorAppointments(status: _tabs[i].$2, date: _date),
+              .loadDoctorAppointments(
+                  status: _tabs[i].$2, date: _date),
         ),
       ),
-      // FIX: add BlocListener to show toasts for appointment actions (confirm/complete)
       body: BlocConsumer<AppointmentCubit, AppointmentState>(
         listener: (context, state) {
           if (state is AppointmentActionSuccess) {
@@ -310,7 +529,6 @@ class _DoctorAppointmentsTabState extends State<_DoctorAppointmentsTab>
                 backgroundColor: AppColors.accent,
                 behavior: SnackBarBehavior.floating,
               ));
-            // Reload list after action
             context
                 .read<AppointmentCubit>()
                 .loadDoctorAppointments(date: _date);
@@ -334,8 +552,9 @@ class _DoctorAppointmentsTabState extends State<_DoctorAppointmentsTab>
               subtitle: state.message,
               icon: Icons.calendar_today_rounded,
               buttonLabel: 'Retry',
-              onButtonTap: () =>
-                  context.read<AppointmentCubit>().loadDoctorAppointments(),
+              onButtonTap: () => context
+                  .read<AppointmentCubit>()
+                  .loadDoctorAppointments(),
             );
           }
 
@@ -348,9 +567,11 @@ class _DoctorAppointmentsTabState extends State<_DoctorAppointmentsTab>
               );
             }
             return RefreshIndicator(
-              onRefresh: () =>
-                  context.read<AppointmentCubit>().loadDoctorAppointments(),
+              onRefresh: () => context
+                  .read<AppointmentCubit>()
+                  .loadDoctorAppointments(),
               child: ListView.builder(
+                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.all(AppSpacing.md),
                 itemCount: state.appointments.length,
                 itemBuilder: (_, i) => AppointmentCard(
@@ -386,12 +607,15 @@ class _DoctorAppointmentsTabState extends State<_DoctorAppointmentsTab>
     if (d != null) {
       setState(() => _date =
           '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}');
-      context.read<AppointmentCubit>().loadDoctorAppointments(date: _date);
+      context
+          .read<AppointmentCubit>()
+          .loadDoctorAppointments(date: _date);
     }
   }
 }
 
 // ── Profile Tab ───────────────────────────────────────────────────────────────
+
 class _DoctorProfileTab extends StatelessWidget {
   const _DoctorProfileTab();
 
@@ -400,142 +624,248 @@ class _DoctorProfileTab extends StatelessWidget {
     final authState = context.watch<AuthCubit>().state;
     final user = authState is AuthSuccess ? authState.user : null;
     final profile = user?.doctorProfile;
+    final initials = user?.fullName.isNotEmpty == true
+        ? user!.fullName[0].toUpperCase()
+        : 'D';
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         automaticallyImplyLeading: false,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1),
+        ),
         title: const Text('My Profile',
             style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        physics: const BouncingScrollPhysics(),
         children: [
-          // Avatar
-          Center(
+          // ── Hero ──────────────────────────────────────────────────
+          Container(
+            color: AppColors.surface,
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
             child: Column(children: [
-              CircleAvatar(
-                radius: 44,
-                backgroundColor: AppColors.doctorRole.withOpacity(0.15),
-                child: Text(
-                  user?.fullName.isNotEmpty == true
-                      ? user!.fullName[0].toUpperCase()
-                      : 'D',
-                  style: AppTextStyles.displayMedium
-                      .copyWith(color: AppColors.doctorRole),
+              // Avatar with gradient ring
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.doctorRole,
+                      AppColors.doctorRole.withOpacity(0.5)
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 44,
+                  backgroundColor:
+                      AppColors.doctorRole.withOpacity(0.12),
+                  child: Text(initials,
+                      style: AppTextStyles.displayMedium
+                          .copyWith(color: AppColors.doctorRole)),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text('Dr. ${user?.fullName ?? ''}',
                   style: AppTextStyles.titleLarge),
+              const SizedBox(height: 2),
               if (profile?.specialization != null)
                 Text(profile!.specialization,
                     style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.primary, fontWeight: FontWeight.w600)),
-              Text(user?.email ?? '', style: AppTextStyles.caption),
-              const SizedBox(height: AppSpacing.xs),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.doctorRole.withOpacity(0.1),
-                  borderRadius: AppRadius.full,
-                ),
-                child: Text('Doctor',
-                    style: AppTextStyles.caption.copyWith(
                         color: AppColors.doctorRole,
                         fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text(user?.email ?? '',
+                  style: AppTextStyles.caption),
+              const SizedBox(height: AppSpacing.sm),
+              // Role badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 5),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.doctorRole,
+                      Color(0xFF5B21B6)
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: AppRadius.full,
+                ),
+                child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified_rounded,
+                          color: Colors.white, size: 12),
+                      SizedBox(width: 4),
+                      Text('Doctor',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.3)),
+                    ]),
               ),
             ]),
           ),
-          const SizedBox(height: AppSpacing.xl),
 
-          // Profile details
+          const SizedBox(height: AppSpacing.sm),
+
+          // ── Professional details ───────────────────────────────────
           if (profile != null) ...[
-            _ProfileCard(children: [
-              _InfoRow('Specialization', profile.specialization),
-              _InfoRow('Qualification', profile.qualification),
-              _InfoRow('Experience', '${profile.experienceYears} years'),
-              _InfoRow('License No.', profile.licenseNumber),
-              _InfoRow('Consultation Fee',
-                  '₹${profile.consultationFee.toStringAsFixed(0)}'),
-            ]),
-            const SizedBox(height: AppSpacing.md),
+            _sectionLabel('Professional'),
+            Container(
+              margin: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md),
+              decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: AppRadius.lg,
+                  boxShadow: AppShadows.card),
+              child: Column(
+                children: [
+                  _DetailTile(
+                      icon: Icons.psychology_rounded,
+                      label: 'Specialization',
+                      value: profile.specialization,
+                      color: AppColors.doctorRole),
+                  const Divider(height: 1, indent: 56),
+                  _DetailTile(
+                      icon: Icons.school_rounded,
+                      label: 'Qualification',
+                      value: profile.qualification,
+                      color: AppColors.primary),
+                  const Divider(height: 1, indent: 56),
+                  _DetailTile(
+                      icon: Icons.work_history_rounded,
+                      label: 'Experience',
+                      value: '${profile.experienceYears} years',
+                      color: AppColors.accent),
+                  const Divider(height: 1, indent: 56),
+                  _DetailTile(
+                      icon: Icons.badge_rounded,
+                      label: 'License No.',
+                      value: profile.licenseNumber,
+                      color: AppColors.warning),
+                  const Divider(height: 1, indent: 56),
+                  _DetailTile(
+                      icon: Icons.currency_rupee_rounded,
+                      label: 'Consultation Fee',
+                      value:
+                          '₹${profile.consultationFee.toStringAsFixed(0)}',
+                      color: AppColors.hospitalRole),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
           ],
 
-          // Actions
-          _ProfileMenuItem(
-            icon: Icons.notifications_outlined,
-            label: 'Notifications',
-            color: AppColors.doctorRole,
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const NotificationScreen())),
+          // ── Account ────────────────────────────────────────────────
+          _sectionLabel('Account'),
+          Container(
+            margin:
+                const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: AppRadius.lg,
+                boxShadow: AppShadows.card),
+            child: Column(children: [
+              _ProfileMenuItem(
+                icon: Icons.notifications_outlined,
+                label: 'Notifications',
+                color: AppColors.warning,
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const NotificationScreen())),
+              ),
+              const Divider(height: 1, indent: 56),
+              _ProfileMenuItem(
+                icon: Icons.lock_outline_rounded,
+                label: 'Change Password',
+                color: AppColors.primary,
+                onTap: () {},
+              ),
+            ]),
           ),
-          _ProfileMenuItem(
-            icon: Icons.lock_outline_rounded,
-            label: 'Change Password',
-            color: AppColors.doctorRole,
-            onTap: () {},
-          ),
+
           const SizedBox(height: AppSpacing.md),
-          // FIX: only call logout() — navigation handled by BlocListener in DoctorDashboard
-          OutlinedButton.icon(
-            onPressed: () => context.read<AuthCubit>().logout(),
-            icon: const Icon(Icons.logout_rounded, size: 18),
-            label: const Text('Sign out'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
-              side: const BorderSide(color: AppColors.error),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md),
+            child: OutlinedButton.icon(
+              onPressed: () => context.read<AuthCubit>().logout(),
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('Sign out'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: const BorderSide(color: AppColors.error),
+              ),
             ),
           ),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
-}
 
-class _ProfileCard extends StatelessWidget {
-  final List<Widget> children;
-  const _ProfileCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: AppRadius.lg,
-            boxShadow: AppShadows.card),
-        child: Column(
-          children:
-              children.expand((w) => [w, const Divider(height: 1)]).toList()
-                ..removeLast(),
+  Widget _sectionLabel(String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md, 0, AppSpacing.md, AppSpacing.xs),
+        child: Text(
+          title.toUpperCase(),
+          style: AppTextStyles.caption.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: AppColors.textHint),
         ),
       );
 }
 
-class _InfoRow extends StatelessWidget {
+// ─── Detail tile (profile info row with coloured icon) ───────────────────────
+
+class _DetailTile extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
-  const _InfoRow(this.label, this.value);
+  final Color color;
+
+  const _DetailTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(children: [
-          SizedBox(
-            width: 140,
-            child: Text(label,
-                style: AppTextStyles.caption
-                    .copyWith(fontWeight: FontWeight.w600)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.textPrimary)),
-          ),
-        ]),
+  Widget build(BuildContext context) => ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: 2),
+        leading: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: AppRadius.sm),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        title: Text(label,
+            style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600)),
+        subtitle: Text(value,
+            style: AppTextStyles.bodyMedium
+                .copyWith(color: AppColors.textPrimary)),
       );
 }
 
@@ -554,16 +884,19 @@ class _ProfileMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        contentPadding: EdgeInsets.zero,
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: 2),
         leading: Container(
-          padding: const EdgeInsets.all(8),
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-              color: color.withOpacity(0.1), borderRadius: AppRadius.sm),
+              color: color.withOpacity(0.1),
+              borderRadius: AppRadius.sm),
           child: Icon(icon, size: 18, color: color),
         ),
         title: Text(label, style: AppTextStyles.bodyLarge),
-        trailing:
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
+        trailing: const Icon(Icons.chevron_right_rounded,
+            color: AppColors.textHint, size: 18),
         onTap: onTap,
       );
 }

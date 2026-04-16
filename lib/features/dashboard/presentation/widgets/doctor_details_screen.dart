@@ -54,7 +54,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
             state is DoctorReviewSubmitted) {
           // Grab the doctor from whichever state carries it
           final d = state is DoctorDetailLoaded
-              ? (state as DoctorDetailLoaded).doctor
+              ? (state).doctor
               : context.read<DoctorCubit>().lastDoctor;
 
           if (d == null) return const SizedBox.shrink();

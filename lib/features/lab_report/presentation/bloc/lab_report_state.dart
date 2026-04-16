@@ -8,15 +8,10 @@ abstract class LabReportState extends Equatable {
 }
 
 class LabReportInitial extends LabReportState {}
-
 class LabReportUploading extends LabReportState {}
-
-class LabReportAnalyzing extends LabReportState {
-  final int reportId;
-  const LabReportAnalyzing({required this.reportId});
-  @override
-  List<Object?> get props => [reportId];
-}
+class LabReportListLoading extends LabReportState {}
+class LabReportDetailLoading extends LabReportState {}
+class LabReportAsking extends LabReportState {}
 
 class LabReportLoaded extends LabReportState {
   final LabReport report;
@@ -25,18 +20,12 @@ class LabReportLoaded extends LabReportState {
   List<Object?> get props => [report];
 }
 
-class LabReportListLoading extends LabReportState {}
-
 class LabReportListLoaded extends LabReportState {
   final List<LabReport> reports;
   const LabReportListLoaded({required this.reports});
   @override
   List<Object?> get props => [reports];
 }
-
-class LabReportDetailLoading extends LabReportState {}
-
-class LabReportAsking extends LabReportState {}
 
 class LabReportAnswered extends LabReportState {
   final String question;

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:medisync_app/features/auth/data/models/auth_model.dart';
 import 'package:medisync_app/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:medisync_app/features/auth/presentation/widgets/auth_header.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
 import 'package:medisync_app/global/validators/validator.dart';
 import 'package:medisync_app/global/widgets/app_textfield.dart';
@@ -15,8 +16,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey     = GlobalKey<FormState>();
-  final _emailCtrl   = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
   @override
@@ -53,7 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
         listener: (context, state) {
           if (state is AuthSuccess) {
             // FIX: show success toast before navigating
-            _showToast('Welcome back, ${state.user.fullName.split(' ').first}!');
+            _showToast(
+                'Welcome back, ${state.user.fullName.split(' ').first}!');
             _routeToDashboard(context, state.user.role);
           } else if (state is AuthPendingApproval) {
             // FIX: handle pending approval on login (doctor/hospital not yet approved)
@@ -81,7 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       subtitle: 'Sign in to your MediSync account',
                     ),
                     const SizedBox(height: AppSpacing.xxl),
-
                     AppTextField(
                       label: 'Email address',
                       hint: 'you@example.com',
@@ -91,7 +92,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: Validators.email,
                     ),
                     const SizedBox(height: AppSpacing.md),
-
                     AppTextField(
                       label: 'Password',
                       hint: '••••••••',
@@ -101,11 +101,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           const Icon(Icons.lock_outline_rounded, size: 18),
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Password is required' : null,
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Password is required'
+                          : null,
                     ),
                     const SizedBox(height: AppSpacing.lg),
-
                     _PrimaryButton(
                       label: 'Sign in',
                       isLoading: isLoading,
@@ -113,10 +113,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _submit,
                     ),
                     const SizedBox(height: AppSpacing.lg),
-
                     const _OrDivider(),
                     const SizedBox(height: AppSpacing.lg),
-
                     Center(
                       child: RichText(
                         text: TextSpan(
@@ -205,10 +203,7 @@ class _PrimaryButton extends StatelessWidget {
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white,
-                ),
+                child: LoadingWidget(),
               )
             : Text(
                 label,

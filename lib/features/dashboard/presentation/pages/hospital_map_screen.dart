@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/models/hospital_model.dart';
 import '../bloc/hospital_cubit.dart';
@@ -26,8 +27,8 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
 
   // Default center — India
   static const LatLng _defaultCenter = LatLng(20.5937, 78.9629);
-  static const double _defaultZoom   = 5.0;
-  static const double _hospitalZoom  = 14.0;
+  static const double _defaultZoom = 5.0;
+  static const double _hospitalZoom = 14.0;
 
   @override
   void initState() {
@@ -91,7 +92,8 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
     // Try Google Maps first, fallback to geo: URI
     final googleUrl =
         'https://www.google.com/maps/dir/?api=1&destination=$lat,$lon&travelmode=driving';
-    final geoUri = Uri.parse('geo:$lat,$lon?q=$lat,$lon(${Uri.encodeComponent(h.name)})');
+    final geoUri =
+        Uri.parse('geo:$lat,$lon?q=$lat,$lon(${Uri.encodeComponent(h.name)})');
 
     if (await canLaunchUrl(Uri.parse(googleUrl))) {
       await launchUrl(Uri.parse(googleUrl),
@@ -112,9 +114,8 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
     return Scaffold(
       body: BlocBuilder<HospitalCubit, HospitalState>(
         builder: (context, state) {
-          final hospitals = state is HospitalMapLoaded
-              ? state.hospitals
-              : <HospitalModel>[];
+          final hospitals =
+              state is HospitalMapLoaded ? state.hospitals : <HospitalModel>[];
           final isLoading = state is HospitalLoading;
 
           return Stack(
@@ -150,8 +151,8 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
 
                       // Hospital markers
                       ...hospitals
-                          .where((h) =>
-                              h.latitude != null && h.longitude != null)
+                          .where(
+                              (h) => h.latitude != null && h.longitude != null)
                           .map((h) => Marker(
                                 point: LatLng(h.latitude!, h.longitude!),
                                 width: 44,
@@ -159,8 +160,7 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
                                 child: GestureDetector(
                                   onTap: () => _onHospitalTap(h),
                                   child: _HospitalMarker(
-                                    isSelected:
-                                        _selectedHospital?.id == h.id,
+                                    isSelected: _selectedHospital?.id == h.id,
                                     hasAvailableBeds: h.hasAvailableBeds,
                                   ),
                                 ),
@@ -187,27 +187,15 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
 
               // ── Loading indicator ──────────────────────────────────────────
               if (isLoading)
-                const Positioned(
-                  top: 100,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2)),
-                            SizedBox(width: 10),
-                            Text('Loading hospitals…'),
-                          ],
-                        ),
-                      ),
+                const Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(child: LoadingWidget()),
+                        SizedBox(width: 10),
+                        Text('Loading hospitals…'),
+                      ],
                     ),
                   ),
                 ),
@@ -230,15 +218,11 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white)),
+                              width: 14, height: 14, child: LoadingWidget()),
                           SizedBox(width: 8),
                           Text('Getting your location…',
-                              style: TextStyle(
-                                  color: Colors.white, fontSize: 13)),
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -298,8 +282,7 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
                     hospital: _selectedHospital!,
                     userLocation: _userLocation,
                     onClose: _dismissPopup,
-                    onGetDirections: () =>
-                        _openDirections(_selectedHospital!),
+                    onGetDirections: () => _openDirections(_selectedHospital!),
                     onViewDetails: () {
                       Navigator.push(
                         context,
@@ -432,8 +415,8 @@ class _MapTopBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Hospitals Near You',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 15)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                 Text(
                   hospitalCount > 0
                       ? '$hospitalCount hospitals on map'
@@ -453,8 +436,7 @@ class _MapTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(8),
@@ -465,12 +447,10 @@ class _MapTopBar extends StatelessWidget {
                     width: 8,
                     height: 8,
                     decoration: const BoxDecoration(
-                        color: AppColors.hospitalRole,
-                        shape: BoxShape.circle)),
+                        color: AppColors.hospitalRole, shape: BoxShape.circle)),
                 const SizedBox(width: 4),
                 const Text('Hospital',
-                    style:
-                        TextStyle(fontSize: 10, color: AppColors.primary)),
+                    style: TextStyle(fontSize: 10, color: AppColors.primary)),
               ],
             ),
           ),
@@ -524,7 +504,8 @@ class _HospitalPopup extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -4)),
+          BoxShadow(
+              color: Colors.black26, blurRadius: 20, offset: Offset(0, -4)),
         ],
       ),
       child: Column(
@@ -647,8 +628,7 @@ class _HospitalPopup extends StatelessWidget {
 
           // Action buttons
           Padding(
-            padding:
-                const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: Row(
               children: [
                 Expanded(
@@ -717,9 +697,7 @@ class _CapacityChip extends StatelessWidget {
             const SizedBox(height: 3),
             Text('$available/$total',
                 style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: color)),
+                    fontSize: 12, fontWeight: FontWeight.w700, color: color)),
             Text(label,
                 style: const TextStyle(
                     fontSize: 10, color: AppColors.textSecondary)),

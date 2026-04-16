@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import 'package:medisync_app/features/sos/data/model/sos_model.dart';
 import 'package:medisync_app/features/sos/presentation/bloc/sos_cubit.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
@@ -74,8 +75,7 @@ class _HospitalSosScreenState extends State<HospitalSosScreen> {
         },
         builder: (context, state) {
           if (state is SosLoading) {
-            return const Center(
-                child: CircularProgressIndicator(color: AppColors.error));
+            return const Center(child: LoadingWidget());
           }
           if (state is SosActiveAlertsLoaded) {
             if (state.alerts.isEmpty) {
@@ -84,8 +84,7 @@ class _HospitalSosScreenState extends State<HospitalSosScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.health_and_safety_outlined,
-                        size: 64,
-                        color: AppColors.accent.withOpacity(0.4)),
+                        size: 64, color: AppColors.accent.withOpacity(0.4)),
                     const SizedBox(height: AppSpacing.md),
                     const Text('No active SOS alerts nearby',
                         style: AppTextStyles.headlineMedium),
@@ -104,8 +103,7 @@ class _HospitalSosScreenState extends State<HospitalSosScreen> {
                 itemCount: state.alerts.length,
                 itemBuilder: (_, i) => _SosAlertCard(
                   sos: state.alerts[i],
-                  onRespond: () =>
-                      _showRespondSheet(context, state.alerts[i]),
+                  onRespond: () => _showRespondSheet(context, state.alerts[i]),
                   onView: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -140,16 +138,16 @@ class _HospitalSosScreenState extends State<HospitalSosScreen> {
             20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
-            width: 40, height: 4,
+            width: 40,
+            height: 4,
             margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
                 color: AppColors.divider, borderRadius: AppRadius.full),
           ),
           Text('Respond to SOS #${sos.id}',
               style: AppTextStyles.headlineMedium),
           const SizedBox(height: 4),
-          Text('Patient: ${sos.patientName}',
-              style: AppTextStyles.bodyMedium),
+          Text('Patient: ${sos.patientName}', style: AppTextStyles.bodyMedium),
           if (sos.distanceKm != null)
             Text('Distance: ${sos.distanceKm!.toStringAsFixed(1)} km',
                 style: AppTextStyles.caption.copyWith(color: AppColors.error)),
@@ -244,9 +242,8 @@ class _HospitalSosDetailScreenState extends State<HospitalSosDetailScreen> {
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // ── Status + severity ─────────────────────────────────────
             _InfoCard(
               title: 'Status',
@@ -264,39 +261,39 @@ class _HospitalSosDetailScreenState extends State<HospitalSosDetailScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                _Row(Icons.person_rounded, _sos.patientName),
-                if (_sos.patientPhone.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  GestureDetector(
-                    onTap: () =>
-                        launchUrl(Uri.parse('tel:${_sos.patientPhone}')),
-                    child: _Row(Icons.phone_rounded, _sos.patientPhone,
-                        color: AppColors.primary),
-                  ),
-                ],
-                if (_sos.bloodGroup.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  _Row(Icons.bloodtype_rounded,
-                      'Blood Group: ${_sos.bloodGroup}'),
-                ],
-                if (_sos.allergies.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  _Row(Icons.warning_amber_rounded,
-                      'Allergies: ${_sos.allergies}',
-                      color: AppColors.warning),
-                ],
-                if (_sos.medications.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  _Row(Icons.medication_rounded,
-                      'Medications: ${_sos.medications}'),
-                ],
-                if (_sos.description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(_sos.description,
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(fontStyle: FontStyle.italic)),
-                ],
-              ]),
+                    _Row(Icons.person_rounded, _sos.patientName),
+                    if (_sos.patientPhone.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () =>
+                            launchUrl(Uri.parse('tel:${_sos.patientPhone}')),
+                        child: _Row(Icons.phone_rounded, _sos.patientPhone,
+                            color: AppColors.primary),
+                      ),
+                    ],
+                    if (_sos.bloodGroup.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _Row(Icons.bloodtype_rounded,
+                          'Blood Group: ${_sos.bloodGroup}'),
+                    ],
+                    if (_sos.allergies.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _Row(Icons.warning_amber_rounded,
+                          'Allergies: ${_sos.allergies}',
+                          color: AppColors.warning),
+                    ],
+                    if (_sos.medications.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _Row(Icons.medication_rounded,
+                          'Medications: ${_sos.medications}'),
+                    ],
+                    if (_sos.description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(_sos.description,
+                          style: AppTextStyles.bodyMedium
+                              .copyWith(fontStyle: FontStyle.italic)),
+                    ],
+                  ]),
             ),
             const SizedBox(height: AppSpacing.sm),
 
@@ -305,10 +302,9 @@ class _HospitalSosDetailScreenState extends State<HospitalSosDetailScreen> {
               _InfoCard(
                 title: 'Emergency Contact',
                 child: GestureDetector(
-                  onTap: () => launchUrl(
-                      Uri.parse('tel:${_sos.emergencyContactPhone}')),
-                  child: _Row(
-                      Icons.contact_phone_rounded,
+                  onTap: () =>
+                      launchUrl(Uri.parse('tel:${_sos.emergencyContactPhone}')),
+                  child: _Row(Icons.contact_phone_rounded,
                       '${_sos.emergencyContactName} — ${_sos.emergencyContactPhone}',
                       color: AppColors.primary),
                 ),
@@ -393,8 +389,7 @@ class _HospitalSosDetailScreenState extends State<HospitalSosDetailScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () =>
-                      context.read<SosCubit>().resolveSos(_sos.id),
+                  onPressed: () => context.read<SosCubit>().resolveSos(_sos.id),
                   icon: const Icon(Icons.task_alt_rounded),
                   label: const Text('Mark Resolved'),
                 ),
@@ -419,9 +414,12 @@ class _SosAlertCard extends StatelessWidget {
 
   Color get _severityColor {
     switch (sos.severity) {
-      case SosSeverity.critical: return AppColors.error;
-      case SosSeverity.high:     return AppColors.warning;
-      default:                   return AppColors.primary;
+      case SosSeverity.critical:
+        return AppColors.error;
+      case SosSeverity.high:
+        return AppColors.warning;
+      default:
+        return AppColors.primary;
     }
   }
 
@@ -484,8 +482,8 @@ class _SosAlertCard extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: onRespond,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error),
+                style:
+                    ElevatedButton.styleFrom(backgroundColor: AppColors.error),
                 icon: const Icon(Icons.local_shipping_rounded, size: 16),
                 label: const Text('Respond'),
               ),
@@ -514,8 +512,7 @@ class _InfoCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title,
               style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700)),
+                  color: AppColors.textSecondary, fontWeight: FontWeight.w700)),
           const SizedBox(height: AppSpacing.sm),
           child,
         ]),
@@ -545,9 +542,12 @@ class _SeverityBadge extends StatelessWidget {
 
   Color get _color {
     switch (severity) {
-      case SosSeverity.critical: return AppColors.error;
-      case SosSeverity.high:     return AppColors.warning;
-      default:                   return AppColors.primary;
+      case SosSeverity.critical:
+        return AppColors.error;
+      case SosSeverity.high:
+        return AppColors.warning;
+      default:
+        return AppColors.primary;
     }
   }
 
@@ -555,8 +555,7 @@ class _SeverityBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-            color: _color.withOpacity(0.1),
-            borderRadius: AppRadius.full),
+            color: _color.withOpacity(0.1), borderRadius: AppRadius.full),
         child: Text(severity.toUpperCase(),
             style: AppTextStyles.caption.copyWith(
                 color: _color, fontWeight: FontWeight.w700, fontSize: 9)),
@@ -569,11 +568,16 @@ class _StatusBadge extends StatelessWidget {
 
   Color get _color {
     switch (status) {
-      case SosStatus.active:   return AppColors.error;
-      case SosStatus.accepted: return AppColors.warning;
-      case SosStatus.enroute:  return AppColors.primary;
-      case SosStatus.arrived:  return AppColors.accent;
-      default:                 return AppColors.textSecondary;
+      case SosStatus.active:
+        return AppColors.error;
+      case SosStatus.accepted:
+        return AppColors.warning;
+      case SosStatus.enroute:
+        return AppColors.primary;
+      case SosStatus.arrived:
+        return AppColors.accent;
+      default:
+        return AppColors.textSecondary;
     }
   }
 
@@ -581,8 +585,7 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-            color: _color.withOpacity(0.1),
-            borderRadius: AppRadius.full),
+            color: _color.withOpacity(0.1), borderRadius: AppRadius.full),
         child: Text(status.toUpperCase(),
             style: AppTextStyles.caption.copyWith(
                 color: _color, fontWeight: FontWeight.w700, fontSize: 9)),

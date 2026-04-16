@@ -11,13 +11,20 @@ class PaymentStatus {
   static const String unpaid   = 'unpaid';
   static const String paid     = 'paid';
   static const String refunded = 'refunded';
-  static const String waived   = 'waived';
 }
 
 class AppointmentType {
   static const String inPerson = 'in_person';
   static const String video    = 'video';
   static const String phone    = 'phone';
+
+  static String label(String type) {
+    switch (type) {
+      case video:   return 'Video Call';
+      case phone:   return 'Phone Call';
+      default:      return 'In Person';
+    }
+  }
 }
 
 class StatusLogModel {
@@ -55,17 +62,23 @@ class AppointmentModel {
   final String doctorName;
   final String doctorSpecialty;
   final String? hospitalName;
-  final String appointmentDate; // "YYYY-MM-DD"
-  final String slotTime;        // "HH:MM:SS"
+  final String appointmentDate;
+  final String slotTime;
   final String appointmentType;
   final String status;
   final double consultationFee;
   final String paymentStatus;
+  final String? paymentMarkedAt;
   final String reason;
   final String symptoms;
   final String notes;
+  final String diagnosis;
+  final String prescription;
   final String cancelReason;
   final int rescheduleCount;
+  final String? confirmedAt;
+  final String? completedAt;
+  final String meetingLink;
   final String createdAt;
   final String updatedAt;
   final List<StatusLogModel> statusLogs;
@@ -84,55 +97,86 @@ class AppointmentModel {
     required this.status,
     required this.consultationFee,
     required this.paymentStatus,
+    this.paymentMarkedAt,
     this.reason = '',
     this.symptoms = '',
     this.notes = '',
+    this.diagnosis = '',
+    this.prescription = '',
     this.cancelReason = '',
     this.rescheduleCount = 0,
+    this.confirmedAt,
+    this.completedAt,
+    this.meetingLink = '',
     required this.createdAt,
     this.updatedAt = '',
     this.statusLogs = const [],
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> j) => AppointmentModel(
-        id: j['id'] ?? 0,
-        patientName: j['patient_name'] ?? '',
-        patientEmail: j['patient_email'] ?? '',
-        patientPhone: j['patient_phone'] ?? '',
-        doctorName: j['doctor_name'] ?? '',
-        // FIX: backend now returns 'doctor_specialty' (fixed in serializers.py)
+        id:              j['id'] ?? 0,
+        patientName:     j['patient_name'] ?? '',
+        patientEmail:    j['patient_email'] ?? '',
+        patientPhone:    j['patient_phone'] ?? '',
+        doctorName:      j['doctor_name'] ?? '',
         doctorSpecialty: j['doctor_specialty'] ?? j['specialization'] ?? '',
-        hospitalName: j['hospital_name'],
-        // FIX: backend now returns 'appointment_date' (fixed in serializers.py)
+        hospitalName:    j['hospital_name'],
         appointmentDate: j['appointment_date'] ?? j['date'] ?? '',
-        // FIX: backend now returns 'slot_time' (fixed in serializers.py)
-        slotTime: j['slot_time'] ?? j['start_time'] ?? '',
-        // FIX: backend returns 'appointment_type' via SerializerMethodField
+        slotTime:        j['slot_time'] ?? j['start_time'] ?? '',
         appointmentType: j['appointment_type'] ?? AppointmentType.inPerson,
-        status: j['status'] ?? AppointmentStatus.pending,
+        status:          j['status'] ?? AppointmentStatus.pending,
         consultationFee: double.tryParse('${j['consultation_fee']}') ?? 0,
-        paymentStatus: j['payment_status'] ?? PaymentStatus.unpaid,
-        reason: j['reason'] ?? '',
-        symptoms: j['symptoms'] ?? '',
-        notes: j['notes'] ?? '',
-        cancelReason: j['cancel_reason'] ?? '',
+        paymentStatus:   j['payment_status'] ?? PaymentStatus.unpaid,
+        paymentMarkedAt: j['payment_marked_at'],
+        reason:          j['reason'] ?? '',
+        symptoms:        j['symptoms'] ?? '',
+        notes:           j['notes'] ?? '',
+        diagnosis:       j['diagnosis'] ?? '',
+        prescription:    j['prescription'] ?? '',
+        cancelReason:    j['cancel_reason'] ?? '',
         rescheduleCount: j['reschedule_count'] ?? 0,
-        createdAt: j['created_at'] ?? '',
-        updatedAt: j['updated_at'] ?? '',
+        confirmedAt:     j['confirmed_at'],
+        completedAt:     j['completed_at'],
+        meetingLink:     j['meeting_link'] ?? '',
+        createdAt:       j['created_at'] ?? '',
+        updatedAt:       j['updated_at'] ?? '',
         statusLogs: (j['status_logs'] as List? ?? [])
             .map((s) => StatusLogModel.fromJson(s))
             .toList(),
       );
 
-  bool get isUpcoming =>
-      status == AppointmentStatus.pending ||
-      status == AppointmentStatus.confirmed;
+  // ── Computed helpers ────────────────────────────────────────────────────
+  bool get isUpcoming      => status == AppointmentStatus.pending || status == AppointmentStatus.confirmed;
+  bool get isCancellable   => status == AppointmentStatus.pending || status == AppointmentStatus.confirmed;
+  bool get isReschedulable => isCancellable && rescheduleCount < 3;
+  bool get canPay          => status == AppointmentStatus.confirmed && paymentStatus == PaymentStatus.unpaid;
+  bool get hasNotes        => notes.isNotEmpty || diagnosis.isNotEmpty || prescription.isNotEmpty;
+  bool get isVirtual       => appointmentType == AppointmentType.video || appointmentType == AppointmentType.phone;
+  bool get hasMeetingLink  => meetingLink.isNotEmpty;
+  bool get canConfirm      => status == AppointmentStatus.pending || status == AppointmentStatus.rescheduled;
+  bool get canComplete     => status == AppointmentStatus.confirmed;
+  bool get canMarkNoShow   => status == AppointmentStatus.confirmed;
+}
 
-  bool get isCancellable =>
-      status == AppointmentStatus.pending ||
-      status == AppointmentStatus.confirmed;
+class AppointmentStats {
+  final int total;
+  final int pending;
+  final int confirmed;
+  final int completed;
+  final int cancelled;
+  final int upcoming;
 
-  bool get isReschedulable =>
-      status == AppointmentStatus.pending ||
-      status == AppointmentStatus.confirmed;
+  const AppointmentStats({
+    this.total = 0, this.pending = 0, this.confirmed = 0,
+    this.completed = 0, this.cancelled = 0, this.upcoming = 0,
+  });
+
+  factory AppointmentStats.fromJson(Map<String, dynamic> j) => AppointmentStats(
+        total:     j['total'] ?? 0,
+        pending:   j['pending'] ?? 0,
+        confirmed: j['confirmed'] ?? 0,
+        completed: j['completed'] ?? 0,
+        cancelled: j['cancelled'] ?? 0,
+        upcoming:  j['upcoming'] ?? 0,
+      );
 }

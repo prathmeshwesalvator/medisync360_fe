@@ -6,6 +6,8 @@ class LabReport {
   final String uploadedAt;
   final String status;
   final String? aiAnalysis;
+  final String? ocrRawText;
+  final String? notes;
   final LabAiResult? aiStructuredResult;
 
   LabReport({
@@ -16,22 +18,13 @@ class LabReport {
     required this.uploadedAt,
     required this.status,
     this.aiAnalysis,
+    this.ocrRawText,
+    this.notes,
     this.aiStructuredResult,
   });
-
-  factory LabReport.fromJson(Map<String, dynamic> json) => LabReport(
-        id: json['id'],
-        title: json['title'] ?? '',
-        reportType: json['report_type'] ?? '',
-        image: json['image'] ?? '',
-        uploadedAt: json['uploaded_at'] ?? '',
-        status: json['status'] ?? 'pending',
-        aiAnalysis: json['ai_analysis'],
-        aiStructuredResult: json['ai_structured_result'] != null
-            ? LabAiResult.fromJson(json['ai_structured_result'])
-            : null,
-      );
 }
+
+// ── Keep ALL of these unchanged from your original model file ────────────────
 
 class LabAiResult {
   final String summary;
@@ -77,12 +70,14 @@ class LabAiResult {
         healthRisks: (json['health_risks'] as List? ?? [])
             .map((e) => HealthRisk.fromJson(e))
             .toList(),
-        dietaryRecommendations: (json['dietary_recommendations'] as List? ?? [])
-            .map((e) => Recommendation.fromJson(e))
-            .toList(),
-        lifestyleRecommendations: (json['lifestyle_recommendations'] as List? ?? [])
-            .map((e) => Recommendation.fromJson(e))
-            .toList(),
+        dietaryRecommendations:
+            (json['dietary_recommendations'] as List? ?? [])
+                .map((e) => Recommendation.fromJson(e))
+                .toList(),
+        lifestyleRecommendations:
+            (json['lifestyle_recommendations'] as List? ?? [])
+                .map((e) => Recommendation.fromJson(e))
+                .toList(),
         followUpTests: List<String>.from(json['follow_up_tests'] ?? []),
         doctorConsultUrgency: json['doctor_consult_urgency'] ?? 'routine',
         doctorConsultReason: json['doctor_consult_reason'] ?? '',
@@ -96,7 +91,7 @@ class LabParameter {
   final String name;
   final String value;
   final String unit;
-  final String status; // normal | high | low | critical_high | critical_low
+  final String status;
   final String referenceRange;
   final String interpretation;
   final String severity;

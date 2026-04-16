@@ -5,6 +5,7 @@ import 'package:medisync_app/features/auth/data/models/auth_model.dart';
 import 'package:medisync_app/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:medisync_app/features/auth/presentation/widgets/auth_header.dart';
 import 'package:medisync_app/features/auth/presentation/widgets/role_selector.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
 import 'package:medisync_app/global/validators/validator.dart';
 import 'package:medisync_app/global/widgets/app_textfield.dart';
@@ -22,27 +23,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedRole = UserRole.user;
 
   // Common
-  final _emailCtrl           = TextEditingController();
-  final _fullNameCtrl        = TextEditingController();
-  final _phoneCtrl           = TextEditingController();
-  final _passwordCtrl        = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _fullNameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
 
   // Doctor
   final _specializationCtrl = TextEditingController();
-  final _qualificationCtrl  = TextEditingController();
-  final _experienceCtrl     = TextEditingController();
-  final _licenseCtrl        = TextEditingController();
+  final _qualificationCtrl = TextEditingController();
+  final _experienceCtrl = TextEditingController();
+  final _licenseCtrl = TextEditingController();
 
   // Hospital
-  final _hospitalNameCtrl  = TextEditingController();
-  final _regNumberCtrl     = TextEditingController();
-  final _addressCtrl       = TextEditingController();
-  final _cityCtrl          = TextEditingController();
-  final _stateCtrl         = TextEditingController();
-  final _pincodeCtrl       = TextEditingController();
-  final _totalBedsCtrl     = TextEditingController();
-  final _icuBedsCtrl       = TextEditingController();
+  final _hospitalNameCtrl = TextEditingController();
+  final _regNumberCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
+  final _stateCtrl = TextEditingController();
+  final _pincodeCtrl = TextEditingController();
+  final _totalBedsCtrl = TextEditingController();
+  final _icuBedsCtrl = TextEditingController();
   final _hospitalPhoneCtrl = TextEditingController();
 
   // FIX: coordinates are nullable — only set when user actually picks location
@@ -79,51 +80,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
     switch (_selectedRole) {
       case UserRole.user:
         cubit.registerUser(
-          email:           _emailCtrl.text.trim(),
-          fullName:        _fullNameCtrl.text.trim(),
-          phone:           _phoneCtrl.text.trim(),
-          password:        _passwordCtrl.text,
+          email: _emailCtrl.text.trim(),
+          fullName: _fullNameCtrl.text.trim(),
+          phone: _phoneCtrl.text.trim(),
+          password: _passwordCtrl.text,
           confirmPassword: _confirmPasswordCtrl.text,
         );
         break;
 
       case UserRole.doctor:
         cubit.registerDoctor(
-          email:           _emailCtrl.text.trim(),
-          fullName:        _fullNameCtrl.text.trim(),
-          phone:           _phoneCtrl.text.trim(),
-          password:        _passwordCtrl.text,
+          email: _emailCtrl.text.trim(),
+          fullName: _fullNameCtrl.text.trim(),
+          phone: _phoneCtrl.text.trim(),
+          password: _passwordCtrl.text,
           confirmPassword: _confirmPasswordCtrl.text,
           doctorProfile: DoctorProfile(
-            specialization:  _specializationCtrl.text.trim(),
-            qualification:   _qualificationCtrl.text.trim(),
+            specialization: _specializationCtrl.text.trim(),
+            qualification: _qualificationCtrl.text.trim(),
             experienceYears: int.tryParse(_experienceCtrl.text) ?? 0,
-            licenseNumber:   _licenseCtrl.text.trim(),
+            licenseNumber: _licenseCtrl.text.trim(),
           ),
         );
         break;
 
       case UserRole.hospital:
         cubit.registerHospital(
-          email:           _emailCtrl.text.trim(),
-          fullName:        _fullNameCtrl.text.trim(),
-          phone:           _phoneCtrl.text.trim(),
-          password:        _passwordCtrl.text,
+          email: _emailCtrl.text.trim(),
+          fullName: _fullNameCtrl.text.trim(),
+          phone: _phoneCtrl.text.trim(),
+          password: _passwordCtrl.text,
           confirmPassword: _confirmPasswordCtrl.text,
           // FIX: pass nullable directly — cubit/repo omit from JSON if null
           // Previously was `_latitude ?? 0.0` which sent 0°N/0°E (ocean coords)
-          latitude:  _latitude,
+          latitude: _latitude,
           longitude: _longitude,
           hospitalProfile: HospitalProfile(
-            hospitalName:       _hospitalNameCtrl.text.trim(),
+            hospitalName: _hospitalNameCtrl.text.trim(),
             registrationNumber: _regNumberCtrl.text.trim(),
-            address:            _addressCtrl.text.trim(),
-            city:               _cityCtrl.text.trim(),
-            state:              _stateCtrl.text.trim(),
-            pincode:            _pincodeCtrl.text.trim(),
-            totalBeds:          int.tryParse(_totalBedsCtrl.text) ?? 0,
-            icuBeds:            int.tryParse(_icuBedsCtrl.text) ?? 0,
-            phone:              _hospitalPhoneCtrl.text.trim(),
+            address: _addressCtrl.text.trim(),
+            city: _cityCtrl.text.trim(),
+            state: _stateCtrl.text.trim(),
+            pincode: _pincodeCtrl.text.trim(),
+            totalBeds: int.tryParse(_totalBedsCtrl.text) ?? 0,
+            icuBeds: int.tryParse(_icuBedsCtrl.text) ?? 0,
+            phone: _hospitalPhoneCtrl.text.trim(),
           ),
         );
         break;
@@ -268,8 +269,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         label: 'Qualification',
                         hint: 'e.g. MBBS, MD (Cardiology)',
                         controller: _qualificationCtrl,
-                        prefixIcon:
-                            const Icon(Icons.school_outlined, size: 18),
+                        prefixIcon: const Icon(Icons.school_outlined, size: 18),
                         validator: (v) =>
                             Validators.required(v, field: 'Qualification'),
                       ),
@@ -421,7 +421,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       HospitalLocationPicker(
                         onLocationSelected: (lat, lon) {
                           setState(() {
-                            _latitude  = lat;
+                            _latitude = lat;
                             _longitude = lon;
                           });
                         },
@@ -560,8 +560,7 @@ class _SectionHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: AppTextStyles.headlineMedium),
-            if (subtitle != null)
-              Text(subtitle!, style: AppTextStyles.caption),
+            if (subtitle != null) Text(subtitle!, style: AppTextStyles.caption),
           ],
         ),
       ],
@@ -582,17 +581,23 @@ class _SubmitButton extends StatelessWidget {
 
   String get _label {
     switch (role) {
-      case UserRole.doctor:   return 'Submit Doctor Application';
-      case UserRole.hospital: return 'Submit Hospital Application';
-      default:                return 'Create Account';
+      case UserRole.doctor:
+        return 'Submit Doctor Application';
+      case UserRole.hospital:
+        return 'Submit Hospital Application';
+      default:
+        return 'Create Account';
     }
   }
 
   Color get _color {
     switch (role) {
-      case UserRole.doctor:   return AppColors.doctorRole;
-      case UserRole.hospital: return AppColors.hospitalRole;
-      default:                return AppColors.primary;
+      case UserRole.doctor:
+        return AppColors.doctorRole;
+      case UserRole.hospital:
+        return AppColors.hospitalRole;
+      default:
+        return AppColors.primary;
     }
   }
 
@@ -620,8 +625,7 @@ class _SubmitButton extends StatelessWidget {
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: Colors.white),
+                child: LoadingWidget(),
               )
             : Text(
                 _label,
@@ -659,8 +663,7 @@ class _ApprovalNotice extends StatelessWidget {
               role == UserRole.doctor
                   ? 'Doctor accounts require admin approval before you can log in.'
                   : 'Hospital accounts require admin verification before activation.',
-              style:
-                  AppTextStyles.caption.copyWith(color: AppColors.warning),
+              style: AppTextStyles.caption.copyWith(color: AppColors.warning),
             ),
           ),
         ],
@@ -680,8 +683,7 @@ class HospitalLocationPicker extends StatefulWidget {
   });
 
   @override
-  State<HospitalLocationPicker> createState() =>
-      _HospitalLocationPickerState();
+  State<HospitalLocationPicker> createState() => _HospitalLocationPickerState();
 }
 
 class _HospitalLocationPickerState extends State<HospitalLocationPicker> {
@@ -757,10 +759,7 @@ class _HospitalLocationPickerState extends State<HospitalLocationPicker> {
           child: OutlinedButton.icon(
             onPressed: _detecting ? null : _detect,
             icon: _detecting
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(width: 14, height: 14, child: LoadingWidget())
                 : const Icon(Icons.my_location_rounded, size: 16),
             label: Text(_detecting
                 ? 'Detecting location…'
@@ -778,9 +777,8 @@ class _HospitalLocationPickerState extends State<HospitalLocationPicker> {
             _status!,
             style: TextStyle(
               fontSize: 12,
-              color: _status!.startsWith('✓')
-                  ? AppColors.accent
-                  : AppColors.error,
+              color:
+                  _status!.startsWith('✓') ? AppColors.accent : AppColors.error,
             ),
           ),
         ],

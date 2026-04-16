@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:medisync_app/features/lab_report/presentation/pages/imaging_screen.dart';
-import 'package:medisync_app/features/lab_report/presentation/pages/lab_report_list_screen.dart';
 import 'package:medisync_app/features/lab_report/presentation/pages/medical_history_screen.dart';
 import 'package:medisync_app/features/lab_report/presentation/pages/prescription_screen.dart';
 import 'package:medisync_app/features/notification/presentation/screens/notification_screen.dart';

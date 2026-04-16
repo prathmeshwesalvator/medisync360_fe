@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import '../bloc/lab_report_cubit.dart';
 import '../bloc/lab_report_state.dart';
 import 'lab_report_result_screen.dart';
@@ -53,12 +54,18 @@ class _UploadLabReportScreenState extends State<UploadLabReportScreen> {
             ListTile(
               leading: const Icon(Icons.camera_alt),
               title: const Text('Camera'),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
               title: const Text('Gallery'),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
             ),
           ],
         ),
@@ -100,8 +107,7 @@ class _UploadLabReportScreenState extends State<UploadLabReportScreen> {
         },
         child: BlocBuilder<LabReportCubit, LabReportState>(
           builder: (context, state) {
-            final bool isBusy =
-                state is LabReportUploading || state is LabReportAnalyzing;
+            final bool isBusy = state is LabReportUploading;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -116,13 +122,15 @@ class _UploadLabReportScreenState extends State<UploadLabReportScreen> {
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
-                        border: Border.all(color: Colors.blue.shade200, width: 2),
+                        border:
+                            Border.all(color: Colors.blue.shade200, width: 2),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: _selectedImage != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(14),
-                              child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                              child: Image.file(_selectedImage!,
+                                  fit: BoxFit.cover),
                             )
                           : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -131,7 +139,8 @@ class _UploadLabReportScreenState extends State<UploadLabReportScreen> {
                                     size: 54, color: Colors.blue.shade300),
                                 const SizedBox(height: 10),
                                 Text('Tap to upload lab report image',
-                                    style: TextStyle(color: Colors.grey.shade600)),
+                                    style:
+                                        TextStyle(color: Colors.grey.shade600)),
                               ],
                             ),
                     ),
@@ -143,20 +152,21 @@ class _UploadLabReportScreenState extends State<UploadLabReportScreen> {
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: _reportType,
+                    initialValue: _reportType,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 10),
                     ),
-                    items: _reportTypes.map((t) => DropdownMenuItem(
-                          value: t['value'],
-                          child: Text(t['label']!),
-                        )).toList(),
-                    onChanged: isBusy
-                        ? null
-                        : (v) => setState(() => _reportType = v!),
+                    items: _reportTypes
+                        .map((t) => DropdownMenuItem(
+                              value: t['value'],
+                              child: Text(t['label']!),
+                            ))
+                        .toList(),
+                    onChanged:
+                        isBusy ? null : (v) => setState(() => _reportType = v!),
                   ),
                   const SizedBox(height: 16),
 
@@ -187,14 +197,12 @@ class _UploadLabReportScreenState extends State<UploadLabReportScreen> {
 
                   // Loading / button
                   if (isBusy) ...[
-                    const Center(child: CircularProgressIndicator()),
+                    const Center(child: LoadingWidget()),
                     const SizedBox(height: 12),
-                    Center(
+                    const Center(
                       child: Text(
-                        state is LabReportUploading
-                            ? 'Uploading...'
-                            : '🔬 AI is analyzing your report...',
-                        style: const TextStyle(fontSize: 15),
+                        'Uploading...',
+                        style: TextStyle(fontSize: 15),
                       ),
                     ),
                   ] else

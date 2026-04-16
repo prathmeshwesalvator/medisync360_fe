@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:medisync_app/features/appointment/data/repository/appointment_repository.dart';
 import 'package:medisync_app/features/appointment/presentation/bloc/appointment_cubit.dart';
 import 'package:medisync_app/features/auth/data/repository/auth_repository.dart';
@@ -15,6 +17,7 @@ import 'package:medisync_app/features/dashboard/presentation/bloc/hospital_cubit
 import 'package:medisync_app/features/dashboard/presentation/pages/doctor_dashboard.dart';
 import 'package:medisync_app/features/dashboard/presentation/pages/hospital_dashboard.dart';
 import 'package:medisync_app/features/dashboard/presentation/pages/user_dashboard.dart';
+import 'package:medisync_app/features/dashboard/presentation/widgets/loading.dart';
 import 'package:medisync_app/features/ehr/data/repository/ehr_repository.dart';
 import 'package:medisync_app/features/ehr/presentation/bloc/ehr_cubit.dart';
 import 'package:medisync_app/features/lab_report/data/repository/lab_report_repository.dart';
@@ -25,68 +28,91 @@ import 'package:medisync_app/global/constants/app_constants.dart';
 import 'package:medisync_app/global/storage/token_storage.dart';
 import 'package:medisync_app/global/theme/app_theme.dart';
 
+// ── Entry point ───────────────────────────────────────────────────────────────
+// FIX: TokenStorage is created once here and passed down, so it is never
+// re-instantiated on a widget rebuild.  Any async initialisation (e.g.
+// FlutterSecureStorage warm-up) can be awaited here before runApp, keeping
+// the main thread free during the first frame.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MediSyncApp());
+
+  FlutterNativeSplash.preserve(
+    widgetsBinding: WidgetsBinding.instance,
+  );
+
+  await dotenv.load(fileName: ".env");
+
+  // Create (and optionally await-initialise) TokenStorage before the widget
+  // tree is built.
+  final tokenStorage = TokenStorage();
+  // If TokenStorage exposes an async init method, call it here:
+  // await tokenStorage.init();
+
+  FlutterNativeSplash.remove();
+
+  runApp(MediSyncApp(tokenStorage: tokenStorage));
 }
 
+// ── Root application widget ───────────────────────────────────────────────────
 class MediSyncApp extends StatelessWidget {
-  const MediSyncApp({super.key});
+  // FIX: Accept the pre-built TokenStorage so build() never creates objects.
+  final TokenStorage tokenStorage;
+
+  const MediSyncApp({super.key, required this.tokenStorage});
 
   @override
   Widget build(BuildContext context) {
-    final tokenStorage = TokenStorage();
-
+    // tokenStorage is a final field — safe to reference here without creating
+    // a new instance on every rebuild.
     return MultiBlocProvider(
-        providers: [
-          BlocProvider(
-            create: (_) => AuthCubit(
-              AuthRepository(),
-              tokenStorage: tokenStorage,
-            )..checkSession(),
+      providers: [
+        BlocProvider(
+          create: (_) => AuthCubit(
+            AuthRepository(),
+            tokenStorage: tokenStorage,
+          )..checkSession(),
+        ),
+        BlocProvider(
+          create: (_) => HospitalCubit(HospitalRepository(), tokenStorage),
+        ),
+        BlocProvider(
+          create: (_) => DoctorCubit(DoctorRepository(), tokenStorage),
+        ),
+        BlocProvider(
+          create: (_) =>
+              AppointmentCubit(AppointmentRepository(), tokenStorage),
+        ),
+        BlocProvider(
+          create: (_) => EHRCubit(EHRRepository(), tokenStorage),
+        ),
+        BlocProvider(
+          create: (_) => LabReportCubit(LabReportRepository()),
+        ),
+        BlocProvider(
+          create: (_) => NotificationCubit(
+            NotificationRepository(storage: tokenStorage),
           ),
-          BlocProvider(
-            create: (_) => HospitalCubit(HospitalRepository(), tokenStorage),
-          ),
-          BlocProvider(
-            create: (_) => DoctorCubit(DoctorRepository(), tokenStorage),
-          ),
-          BlocProvider(
-            create: (_) =>
-                AppointmentCubit(AppointmentRepository(), tokenStorage),
-          ),
-          BlocProvider(
-            create: (_) => EHRCubit(EHRRepository(), tokenStorage),
-          ),
-          BlocProvider(
-            create: (_) => LabReportCubit(
-              LabReportRepository(),
-            ),
-          ),
-          BlocProvider(
-            create: (_) => NotificationCubit(
-              NotificationRepository(storage: tokenStorage),
-            ),
-          ),
-        ],
-        child: MaterialApp(
-          title: 'MediSync 360',
-          debugShowCheckedModeBanner: false,
-          theme: buildAppTheme(),
-          home: const _SplashRouter(),
-          routes: {
-            '/login': (_) => const LoginScreen(),
-            '/register': (_) => const RegisterScreen(),
-            '/dashboard/user': (_) => const UserDashboard(),
-            '/dashboard/doctor': (_) => const DoctorDashboard(),
-            '/dashboard/hospital': (_) => const HospitalDashboard(),
-            '/dashboard/admin': (_) => const _AdminPlaceholder(),
-          },
-        ));
+        ),
+      ],
+      child: MaterialApp(
+        title: 'MediSync 360',
+        debugShowCheckedModeBanner: false,
+        theme: buildAppTheme(),
+        home: const _SplashRouter(),
+        routes: {
+          '/login': (_) => const LoginScreen(),
+          '/register': (_) => const RegisterScreen(),
+          '/dashboard/user': (_) => const UserDashboard(),
+          '/dashboard/doctor': (_) => const DoctorDashboard(),
+          '/dashboard/hospital': (_) => const HospitalDashboard(),
+          '/dashboard/admin': (_) => const _AdminPlaceholder(),
+        },
+      ),
+    );
   }
 }
 
-// ── Splash / Auth Router ───────────────────────────────────────────────────────
+// ── Splash / Auth Router ──────────────────────────────────────────────────────
 class _SplashRouter extends StatelessWidget {
   const _SplashRouter();
 
@@ -96,19 +122,14 @@ class _SplashRouter extends StatelessWidget {
       builder: (context, state) {
         if (state is AuthInitial || state is AuthLoading) {
           return const Scaffold(
-            backgroundColor: AppColors.primary,
-            body: Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            ),
+            body: Center(child: LoadingWidget()),
           );
         }
+
         if (state is AuthSuccess) return _dashboardFor(state.user.role);
         if (state is AuthPendingApproval) return const _PendingApprovalScreen();
-        // FIX: AuthLoggedOut and AuthUnauthenticated both route to login.
-        // Previously only AuthSuccess/AuthPendingApproval were handled,
-        // so AuthLoggedOut/AuthUnauthenticated fell through to LoginScreen
-        // via the default case — that was correct by accident, but
-        // explicit is safer.
+
+        // AuthLoggedOut | AuthUnauthenticated | any other state → login
         return const LoginScreen();
       },
     );
@@ -149,8 +170,11 @@ class _PendingApprovalScreen extends StatelessWidget {
                   color: AppColors.warning.withOpacity(0.15),
                   borderRadius: AppRadius.xl,
                 ),
-                child: const Icon(Icons.hourglass_top_rounded,
-                    size: 48, color: AppColors.warning),
+                child: const Icon(
+                  Icons.hourglass_top_rounded,
+                  size: 48,
+                  color: AppColors.warning,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               const Text('Awaiting Approval',
@@ -164,8 +188,9 @@ class _PendingApprovalScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               OutlinedButton(
-                // FIX: only call logout() — BlocBuilder handles navigation
-                // after AuthLoggedOut is emitted
+                // FIX: Only call logout(); _SplashRouter's BlocBuilder handles
+                // the navigation when AuthLoggedOut is emitted — no manual
+                // Navigator call needed here.
                 onPressed: () => context.read<AuthCubit>().logout(),
                 child: const Text('Logout'),
               ),
@@ -177,8 +202,7 @@ class _PendingApprovalScreen extends StatelessWidget {
   }
 }
 
-// ── Admin Placeholder ─────────────────────────────────────────────────────────
-
+// ── Admin Placeholder (embedded web panel) ────────────────────────────────────
 class _AdminPlaceholder extends StatefulWidget {
   const _AdminPlaceholder();
 
@@ -187,24 +211,30 @@ class _AdminPlaceholder extends StatefulWidget {
 }
 
 class _AdminPlaceholderState extends State<_AdminPlaceholder> {
-  InAppWebViewController? webViewController;
+  InAppWebViewController? _webViewController;
 
-  Future<void> handleBack() async {
-    if (webViewController != null) {
-      bool canGoBack = await webViewController!.canGoBack();
+  // FIX: Guard against an empty/malformed adminBase URL so WebUri never
+  // throws on a bad string.
+  bool get _hasValidUrl =>
+      AppConstants.adminBase.isNotEmpty &&
+      Uri.tryParse(AppConstants.adminBase) != null;
 
+  Future<void> _handleBack() async {
+    if (_webViewController != null) {
+      final canGoBack = await _webViewController!.canGoBack();
       if (canGoBack) {
-        await webViewController!.goBack();
+        await _webViewController!.goBack();
         return;
       }
     }
-
     SystemNavigator.pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    // FIX: listen for logout so admin can also be logged out cleanly
+    // FIX: BlocListener lets the admin screen react to logout just like every
+    // other screen, pushing /login when AuthLoggedOut / AuthUnauthenticated is
+    // emitted.
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
         if (state is AuthLoggedOut || state is AuthUnauthenticated) {
@@ -215,18 +245,28 @@ class _AdminPlaceholderState extends State<_AdminPlaceholder> {
         canPop: false,
         onPopInvoked: (didPop) async {
           if (didPop) return;
-          await handleBack();
+          await _handleBack();
         },
         child: Scaffold(
           body: SafeArea(
-            child: InAppWebView(
-              initialUrlRequest: URLRequest(
-                url: WebUri(AppConstants.adminBase),
-              ),
-              onWebViewCreated: (controller) {
-                webViewController = controller;
-              },
-            ),
+            child: _hasValidUrl
+                ? InAppWebView(
+                    initialUrlRequest: URLRequest(
+                      url: WebUri(AppConstants.adminBase),
+                    ),
+                    onWebViewCreated: (controller) {
+                      _webViewController = controller;
+                    },
+                  )
+                : const Center(
+                    // FIX: Show a friendly error instead of crashing when
+                    // adminBase is empty or misconfigured.
+                    child: Text(
+                      'Admin panel URL is not configured.\n'
+                      'Please check AppConstants.adminBase.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
           ),
         ),
       ),

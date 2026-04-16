@@ -41,7 +41,8 @@ class HospitalCubit extends Cubit<HospitalState> {
     } on ApiException catch (e) {
       emit(HospitalError(e.message));
     } catch (_) {
-      emit(const HospitalError('Unable to load hospitals. Check your connection.'));
+      emit(const HospitalError(
+          'Unable to load hospitals. Check your connection.'));
     }
   }
 
